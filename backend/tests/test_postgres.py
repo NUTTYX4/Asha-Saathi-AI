@@ -131,6 +131,28 @@ def test_database_check_constraint_rejects_bad_weight(engine):
                 "requires_phc_referral, record_version) VALUES ('x','ANC',999,'[]',false,1)"))
 
 
+def test_migrations_match_models(engine):
+    """Hand-written migrations must produce exactly the schema the ORM models describe."""
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+
+    from app.db.models import Base
+
+    with engine.connect() as conn:
+        diff = compare_metadata(MigrationContext.configure(conn), Base.metadata)
+    diff = [d for d in diff if not (isinstance(d, tuple) and "spatial_ref_sys" in str(d))]  # PostGIS table
+    assert diff == []
+
+
+def test_auth_tables_exist_with_constraints(engine):
+    tables = set(inspect(engine).get_table_names())
+    assert {"users", "territories", "territory_assignments", "auth_sessions", "audit_events"} <= tables
+    with pytest.raises(Exception):
+        with engine.begin() as conn:
+            conn.execute(text("INSERT INTO users (id, username, display_name, role, password_hash, active, is_demo) "
+                              "VALUES (gen_random_uuid(), 'x', 'X', 'superuser', 'h', true, false)"))
+
+
 def test_downgrade_and_upgrade_again(engine, test_url):
     """Rollback path: downgrade to base, then upgrade to head on a clean schema."""
     engine.dispose()

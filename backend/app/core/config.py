@@ -22,6 +22,15 @@ class Settings(BaseSettings):
     # SecretStr: the URL contains the database password.
     database_url: SecretStr | None = None
 
+    # V2 auth. Session cookies are httpOnly + SameSite=Strict; Secure unless explicitly disabled.
+    session_ttl_hours: int = Field(default=12, ge=1, le=72)
+    session_cookie_secure: bool = True
+    login_max_failures: int = 5          # per username+client within the window
+    login_failure_window_s: int = 300
+    # Round 1 endpoints (/api/visits, /api/followups, /ws/session) have no login. Kept on until
+    # the V2 UI replaces them (Phase 7); then set LEGACY_ROUND1_API_ENABLED=false.
+    legacy_round1_api_enabled: bool = True
+
     # Gnani API Platform. SecretStr keeps the key out of reprs and logs.
     gnani_api_key: SecretStr | None = None
 

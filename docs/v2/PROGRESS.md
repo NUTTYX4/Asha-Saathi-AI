@@ -9,7 +9,7 @@ Branch: `v2/backend-foundation`. Round 1 baseline: `main` at `aba3f2b` (pushed).
 | --- | --- | --- |
 | 0 | Preflight: git baseline, Docker/WSL, toolchain, secrets present | Done |
 | 1 | Docker Compose + PostgreSQL/PostGIS + SQLAlchemy/Alembic, Round 1 contracts kept | **Done (gates passed)** |
-| 2 | Auth, roles, territories, audit; REST and WebSocket denial tests | Not started |
+| 2 | Auth, roles, territories, audit; REST and WebSocket denial tests | **Done (gates passed)** |
 | 3 | Households/people/relationships + 12-house/50-person idempotent seed | Not started |
 | 4 | PostGIS spatial APIs, manual search fallback | Not started |
 | 5 | Household/person-bound Gnani visit flow saved to PostgreSQL | Not started |
@@ -65,4 +65,53 @@ Branch: `v2/backend-foundation`. Round 1 baseline: `main` at `aba3f2b` (pushed).
 **Not yet verified in Phase 1:** the browser/phone flow against the container. The proxy target is
 unchanged (`127.0.0.1:8000`), but this will be re-checked in Phase 5/7.
 
-**Next:** Phase 2 (authentication, roles, territories, audit).
+Checkpoint commit: `ad5db92`.
+
+## Phase 2: authentication, roles, territories, audit (21 Nov 2026)
+
+**Design**
+- **Sessions:** server-side, in the `auth_sessions` table, storing only a SHA-256 hash of the token.
+  The cookie `asha_session` is httpOnly, Secure, SameSite=Strict, and lasts 12 h (`SESSION_TTL_HOURS`).
+- **Passwords:** Argon2id (`argon2-cffi==25.1.0`), at least 12 characters. When the username doesn't
+  exist, a dummy hash is still checked, so response time doesn't reveal valid usernames. Login errors
+  are generic.
+- **Login rate limit:** 5 failures per username + client in 5 minutes. It's kept in memory, so an
+  API restart clears it (acceptable for a single-process prototype).
+- **Request forgery:** unsafe requests need the `X-Requested-With: asha-saathi` header. CORS stays
+  GET-only, so a cross-site page can't send that header.
+- **Roles:** `worker`, `supervisor`, `admin`. Workers and supervisors see only territories with an
+  active assignment; admins see all. Access is checked in the service layer
+  (`app/auth/service.py: visible_territory_ids / ensure_territory_access`). Another territory's ID
+  returns **404**, so IDs can't be probed.
+- **Audit:** `audit_events` records action, resource, actor, request ID, and sanitised details
+  (codes and field names only). It covers login, failed login, logout, user creation, and assignment
+  create/end.
+- **WebSocket `/ws/v2/session`:** the handshake is refused (close 4401/4403, HTTP 403) without a valid
+  cookie or when the Origin doesn't match the Host. Binding a session to a household or person is
+  Phase 5.
+- **Round 1 endpoints** (`/api/visits`, `/api/followups`, `/ws/session`) still have **no login**.
+  They're kept for the current frontend behind `LEGACY_ROUND1_API_ENABLED` (default true).
+  **Open security item:** set it to false once the V2 UI replaces them (Phase 7).
+- **First admin:** `docker compose exec api python -m scripts.create_user --username admin --display-name "Admin" --role admin`
+  prints a one-time random password. No password is committed.
+
+**New files:** `app/auth/{passwords,service,deps,ratelimit}.py`, `app/api/v2/{auth,territories,admin,ws}.py`,
+`app/schemas/auth.py`, `migrations/versions/0002_auth_territories_audit.py`, `scripts/create_user.py`,
+`tests/test_auth.py`. `app/main.py` became an app factory (`create_app(engine)`) with a request-ID middleware.
+
+**Evidence**
+
+| Check | Result |
+| --- | --- |
+| Container suite (`docker compose exec api python -m pytest -q`) | **102 passed** |
+| Host suite (SQLite) | 92 passed, 10 skipped (PostgreSQL-only) |
+| Migration on the live database | `Running upgrade 0001 -> 0002`; `alembic_version` = 0002 |
+| Migrations match the models (`test_migrations_match_models`) | passes. It caught one missing index on its first run, which is now fixed |
+| Attack tests (`tests/test_auth.py`, 23) | forged cookie, replayed token after logout, expired session, deactivated user, guessed territory ID (404), ended assignment, non-admin on admin routes, missing CSRF header, rate limit, WebSocket without cookie / forged cookie / cross-site Origin: all refused |
+| Live HTTP probes on the Docker API | `/api/v2/auth/me` 401, login without CSRF header 403, bad credentials 401, admin route 401, WebSocket handshakes 403 |
+| Live audit row | `auth.login_failed` stored with request ID; 0 rows contain password text |
+
+**Not yet covered:** a forged `person_id` in the WebSocket start message is tested in Phase 5, when
+households and people exist.
+
+**Next:** Phase 3 (households, people, relationships, 12/50 seed).
