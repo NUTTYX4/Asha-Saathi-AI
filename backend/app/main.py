@@ -24,6 +24,7 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.database import connect, connect_postgres
 from app.db.repositories import VisitRepository
+from app.integrations.extraction_provider import build_extraction_provider
 from app.integrations.voice_provider import build_voice_provider
 from app.services.voice_v2 import SessionRegistry
 
@@ -49,6 +50,7 @@ def create_app(engine: Engine | None = None) -> FastAPI:
         # V2 voice (Phase 5): Gnani provider (mock only for the *_e2e database) and live sessions.
         app.state.voice_provider = build_voice_provider(settings, eng.url.database)
         app.state.voice_registry = SessionRegistry(settings.voice_max_sessions_per_worker)
+        app.state.extraction_provider = build_extraction_provider(settings)
         yield
         if engine is None:
             eng.dispose()

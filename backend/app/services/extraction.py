@@ -36,6 +36,7 @@ class Extraction:
     is_correction: bool = False
     wants_correction: bool = False
     is_negative_answer: bool = False
+    subject_conflict: bool = False
     intent: Intent = Intent.NONE
     normalized_text: str = ""
     fields: list[str] = field(default_factory=list)
@@ -151,13 +152,26 @@ def _weight(text: str) -> float | None:
         WEIGHT_CUE + r"\D{0,20}?(\d{1,3}(?:\.\d)?)",
         r"(\d{1,3}(?:\.\d)?)\s*" + WEIGHT_UNIT,
     )
+    matches: list[tuple[int, float]] = []
     for pattern in patterns:
-        match = re.search(pattern, text, re.I)
-        if match:
+        for match in re.finditer(pattern, text, re.I):
             value = float(match.group(1))
             if 0 < value < 250:
-                return value
-    return None
+                matches.append((match.start(1), value))
+    if not matches:
+        return None
+    matches.sort(key=lambda item: item[0])
+    distinct = {val for _, val in matches}
+    if len(distinct) > 1:
+        has_correction_cue = bool(
+            CORRECTION_CUE.search(text)
+            or EXPLICIT_CORRECTION_WORDS.search(text)
+            or NEGATION_WORDS.search(text)
+        )
+        if not has_correction_cue:
+            return None
+        return matches[-1][1]
+    return matches[0][1]
 
 
 def _vaccinations(text: str) -> list[str] | None:
@@ -179,20 +193,38 @@ def _add_months(start: date, months: int) -> date:
 def _next_visit_date(text: str, today: date, expecting_date: bool) -> date | None:
     lowered = text.lower()
     # Absolute: "28 november" / "november 28" / "ನವೆಂಬರ್ 28"
-    match = re.search(rf"(\d{{1,2}})\s*(?:st|nd|rd|th)?\s*({_MONTH_ALT})\b", lowered) or re.search(
-        rf"({_MONTH_ALT})\s*(\d{{1,2}})\b", lowered
-    )
-    if match:
-        a, b = match.groups()
-        day, month = (int(a), MONTHS[b]) if a.isdigit() else (int(b), MONTHS[a])
-        for year in (today.year, today.year + 1):
-            try:
-                candidate = date(year, month, day)
-            except ValueError:
+    abs_matches = list(
+        re.finditer(rf"(\d{{1,2}})\s*(?:st|nd|rd|th)?\s*({_MONTH_ALT})\b", lowered)
+    ) + list(re.finditer(rf"({_MONTH_ALT})\s*(\d{{1,2}})\b", lowered))
+    if abs_matches:
+        parsed_dates: list[tuple[int, date]] = []
+        for match in abs_matches:
+            a, b = match.groups()
+            day, month = (int(a), MONTHS[b]) if a.isdigit() else (int(b), MONTHS[a])
+            resolved: date | None = None
+            for year in (today.year, today.year + 1):
+                try:
+                    candidate = date(year, month, day)
+                except ValueError:
+                    break
+                if candidate >= today:
+                    resolved = candidate
+                    break
+            if resolved is not None:
+                parsed_dates.append((match.start(), resolved))
+        if not parsed_dates:
+            return None
+        parsed_dates.sort(key=lambda item: item[0])
+        if len({d for _, d in parsed_dates}) > 1:
+            has_correction_cue = bool(
+                CORRECTION_CUE.search(text)
+                or EXPLICIT_CORRECTION_WORDS.search(text)
+                or NEGATION_WORDS.search(text)
+            )
+            if not has_correction_cue:
                 return None
-            if candidate >= today:
-                return candidate
-        return None
+            return parsed_dates[-1][1]
+        return parsed_dates[0][1]
 
     # Relative expressions need a follow-up cue, or the agent must have asked for
     # the date: "7 ತಿಂಗಳು ಗರ್ಭಿಣಿ" (7 months pregnant) is not a visit date.

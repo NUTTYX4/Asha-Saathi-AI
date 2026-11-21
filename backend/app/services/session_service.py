@@ -16,6 +16,11 @@ from datetime import date
 from pydantic import BaseModel
 
 from app.db.repositories import VisitRepository
+from app.integrations.extraction_provider import (
+    DeterministicExtractionProvider,
+    ExtractionContext,
+    ExtractionProvider,
+)
 from app.safety import danger_signs
 from app.schemas.events import (
     AgentAudioCancel,
@@ -34,7 +39,7 @@ from app.schemas.events import (
 )
 from app.schemas.visit import RecordStatus, VisitRecord, VisitType
 from app.services import prompts
-from app.services.extraction import Extraction, Intent, extract, find_visit_type
+from app.services.extraction import Extraction, Intent, find_visit_type
 
 log = logging.getLogger(__name__)
 
@@ -73,6 +78,7 @@ class VoiceSession:
         locked_visit_type: VisitType | None = None,
         danger_scope: VisitType | None = None,
         gate_until_disclosure: bool = False,
+        extraction_provider: ExtractionProvider | None = None,
     ) -> None:
         """The keyword options are V2 (Phase 5) behaviour; their defaults are Round 1's.
 
@@ -127,6 +133,7 @@ class VoiceSession:
         self._locked_visit_type = locked_visit_type if locked_visit_type not in (None, VisitType.UNKNOWN) else None
         self._danger_scope = danger_scope
         self._disclosure_done = not gate_until_disclosure
+        self._extraction_provider: ExtractionProvider = extraction_provider or DeterministicExtractionProvider()
         self.playback_ack_version: int | None = None
         if locked_beneficiary_id is not None:
             self.record.beneficiary_id = locked_beneficiary_id
@@ -367,12 +374,18 @@ class VoiceSession:
             self._pending.clear()
             try:
                 await self.set_state(SessionState.PROCESSING)
-                ext = extract(
-                    text,
-                    self._today(),
-                    expecting_date=self._asked_field == "next_visit_date",
-                    expecting_visit_type=self._asked_field == "visit_type",
+                outcome = await self._extraction_provider.extract(
+                    ExtractionContext(
+                        text=text,
+                        today=self._today(),
+                        expecting_date=self._asked_field == "next_visit_date",
+                        expecting_visit_type=self._asked_field == "visit_type",
+                        current_visit_type=self.record.visit_type,
+                    )
                 )
+                if not self.active or self._speech_seq != seq:
+                    return  # cancelled or superseded while extraction was in flight
+                ext = outcome.extraction
 
                 if ext.intent == Intent.GREETING:
                     await self.set_state(
@@ -380,10 +393,12 @@ class VoiceSession:
                     )
                     return
 
-                if ext.has_fields:
+                if ext.has_fields or ext.subject_conflict:
                     if not await self._apply(ext, text):
                         await self.set_state(SessionState.LISTENING)  # waiting for the worker (V2 subject check)
                         return
+                    if outcome.used_assist:
+                        self._on_assist_used()
                     self._asked_routine_confirm = False
                     self._routine_prompt_shown = False
                     self._clarified_once.clear()
@@ -394,6 +409,8 @@ class VoiceSession:
                     self._asked_routine_confirm = False
                     if ext.intent == Intent.CONFIRM:
                         self.record.visit_type = VisitType.ROUTINE
+                        if outcome.used_assist:
+                            self._on_assist_used()
                         await self._bump(["visit_type"])
                         await self._next_step()
                         return
@@ -453,11 +470,16 @@ class VoiceSession:
                 if self._speech_seq == seq and not self._pending:
                     self._speech_pending = False
 
+    def _on_assist_used(self) -> None:
+        """Hook for subclasses (e.g. V2 provenance tracking)."""
+
     def state_is_awaiting(self) -> bool:
         return self.readback_version is not None
 
     def _subject_conflict(self, ext: Extraction, text: str = "") -> bool:
         """V2: speech naming another beneficiary, a different visit type, or another person/ambiguous subject."""
+        if ext.subject_conflict:
+            return True
         if (self._locked_beneficiary_id is not None and ext.beneficiary_id is not None
                 and ext.beneficiary_id != self._locked_beneficiary_id):
             return True

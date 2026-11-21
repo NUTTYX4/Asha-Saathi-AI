@@ -34,6 +34,14 @@ class Settings(BaseSettings):
 
     # V2 voice visits (Phase 5). OFF unless explicitly enabled.
     v2_voice_enabled: bool = False
+    # Optional Gemini structured-extraction assist (Phase 5B). OFF unless explicitly enabled.
+    gemini_extraction_enabled: bool = False
+    extraction_provider_mode: Literal["deterministic", "gemini_mock", "gemini"] = "deterministic"
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_timeout_s: float = Field(default=6.0, gt=0.1, le=30.0)
+    gemini_max_input_chars: int = Field(default=1000, ge=50, le=4000)
+    gemini_max_output_tokens: int = Field(default=512, ge=128, le=1024)
     # "gnani" (production) or "mock" (browser e2e only; refused unless the database is *_e2e).
     voice_provider_mode: Literal["gnani", "mock"] = "gnani"
     mock_voice_script: str | None = None          # JSON list of synthetic transcripts (mock only)
@@ -89,6 +97,17 @@ class Settings(BaseSettings):
                 "GNANI_API_KEY is not set. Add it to the .env file at the repository root."
             )
         return self.gnani_api_key.get_secret_value().strip()  # type: ignore[union-attr]
+
+    @property
+    def gemini_configured(self) -> bool:
+        return bool(self.gemini_api_key and self.gemini_api_key.get_secret_value().strip())
+
+    def require_gemini_key(self) -> str:
+        if not self.gemini_configured:
+            raise RuntimeError(
+                "GEMINI_API_KEY is not set. Add it to the .env file at the repository root."
+            )
+        return self.gemini_api_key.get_secret_value().strip()  # type: ignore[union-attr]
 
 
 @lru_cache

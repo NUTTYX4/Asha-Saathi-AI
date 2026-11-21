@@ -44,6 +44,9 @@ services:
       LEGACY_ROUND1_API_ENABLED: ${LEGACY_ROUND1_API_ENABLED:-false}
       # Person-bound voice visits (Phase 5): OFF unless explicitly enabled (shell env or .env).
       V2_VOICE_ENABLED: ${V2_VOICE_ENABLED:-false}
+      # Optional Gemini structured-extraction assist (Phase 5B): OFF unless explicitly enabled.
+      GEMINI_EXTRACTION_ENABLED: ${GEMINI_EXTRACTION_ENABLED:-false}
+      EXTRACTION_PROVIDER_MODE: ${EXTRACTION_PROVIDER_MODE:-deterministic}
     ports:
       # Localhost only: the Vite HTTPS dev server proxies /api and /ws here. Not exposed to the LAN.
       - "127.0.0.1:8000:8000"
@@ -68,6 +71,8 @@ services:
       DATABASE_URL: postgresql+psycopg://asha:${POSTGRES_PASSWORD}@db:5432/asha_saathi_e2e
       LEGACY_ROUND1_API_ENABLED: "false"
       V2_VOICE_ENABLED: "true"
+      GEMINI_EXTRACTION_ENABLED: ${E2E_GEMINI_EXTRACTION_ENABLED:-false}
+      EXTRACTION_PROVIDER_MODE: ${E2E_EXTRACTION_PROVIDER_MODE:-deterministic}
       # Scripted mock speech for the browser test only; refused for any non-*_e2e database.
       VOICE_PROVIDER_MODE: mock
       MOCK_VOICE_SCRIPT: ${MOCK_VOICE_SCRIPT:-}

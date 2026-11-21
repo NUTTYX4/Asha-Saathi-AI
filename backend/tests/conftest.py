@@ -11,9 +11,11 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
-# Tests assume the safe default V2_VOICE_ENABLED=false even when the operator's .env has it enabled
-# for a live demo; voice tests opt in explicitly via monkeypatch.
+# Tests assume safe defaults even when the operator's .env has live features enabled;
+# voice and optional assist tests opt in explicitly via monkeypatch.
 os.environ["V2_VOICE_ENABLED"] = "false"
+os.environ["GEMINI_EXTRACTION_ENABLED"] = "false"
+os.environ["EXTRACTION_PROVIDER_MODE"] = "deterministic"
 
 APP_URL = os.environ.get("DATABASE_URL", "")
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

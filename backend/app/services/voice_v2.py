@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from app.auth.service import AccessDenied, _token_hash, load_principal, user_for_token
 from app.db.models import Household
 from app.db.visits_v2 import VisitBinding, VisitReceipt, VisitSaveRefused, check_binding, confirm_visit
+from app.integrations.extraction_provider import ExtractionProvider
 from app.schemas.events import (
     RecordUpdated,
     SessionEnded,
@@ -115,12 +116,14 @@ class V2VisitSession(VoiceSession):
         today: Callable[[], date] = date.today,
         respond_delay_s: float = 0.6,
         extraction_source: str = "deterministic",
+        extraction_provider: ExtractionProvider | None = None,
     ) -> None:
         super().__init__(
             send, tts, repo=None, today=today, respond_delay_s=respond_delay_s,  # type: ignore[arg-type]
             stt_model=stt_model, require_playback_ack=True, spoken_confirm_saves=False,
             locked_beneficiary_id=binding.person_public_id, locked_visit_type=visit_type,
             danger_scope=DANGER_SCOPE[visit_type], gate_until_disclosure=True,
+            extraction_provider=extraction_provider,
         )
         self.session_id = binding.session_ref
         self.binding = binding
@@ -128,6 +131,7 @@ class V2VisitSession(VoiceSession):
         self._engine = engine
         self._person_display_name = person_display_name
         self._on_end = on_end
+        self._base_extraction_source = extraction_source
         self._extraction_source = extraction_source
         self.saved: VisitReceipt | None = None
         self.ended_reason: str | None = None
@@ -153,14 +157,20 @@ class V2VisitSession(VoiceSession):
         if self.ended_reason is not None:
             return
         self.ended_reason = reason
+        if self._respond_task and not self._respond_task.done():
+            self._respond_task.cancel()
         if self.saved is None:
             self._discard_draft()
         await self.emit(SessionEnded(reason=reason, message=message))
         if self._on_end is not None:
             await self._on_end(reason)
 
+    def _on_assist_used(self) -> None:
+        self._extraction_source = "deterministic+assist"
+
     def _discard_draft(self) -> None:
         self.record = VisitRecord()
+        self._extraction_source = self._base_extraction_source
         self._pending.clear()
         self.readback_version = None
         self.playback_ack_version = None

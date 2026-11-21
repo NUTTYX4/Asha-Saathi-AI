@@ -136,9 +136,11 @@ async def v2_session(ws: WebSocket) -> None:
     async def on_end(_reason: str) -> None:
         ended.set()
 
+    extraction_provider = getattr(ws.app.state, "extraction_provider", None)
     session = V2VisitSession(send=send, tts=provider.tts, engine=engine, binding=binding,
                              visit_type=start.visit_type, person_display_name=display_name,
-                             stt_model=stt_model, on_end=on_end)
+                             stt_model=stt_model, on_end=on_end,
+                             extraction_provider=extraction_provider)
     registry = ws.app.state.voice_registry
     try:
         previous = registry.claim(session)
