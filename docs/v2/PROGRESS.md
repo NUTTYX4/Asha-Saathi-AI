@@ -17,7 +17,7 @@ Branch: `v2/backend-foundation`. Round 1 baseline: `main` at `aba3f2b` (pushed).
 | 2 | Auth, roles, territories, audit; REST and WebSocket denial tests | **Done (gates passed)** |
 | 3 | Households/people/relationships + 12-house/50-person idempotent seed | **Done (gates passed)** |
 | 4 | Secure map discovery (list/search/bbox/nearby), household confirmation, member selection, minimal browser UI at `/v2` | **Done, awaiting owner review (not committed)** |
-| 5 | Household/person-bound Gnani visit flow saved to PostgreSQL | Not started (needs owner approval) |
+| 5 | Household/person-bound Gnani visit flow saved to PostgreSQL | **Phase 5A GO (Pre-Gemini Checkpoint `2026-11-22 02:35 IST`): `317 passed / 6 skipped` backend Docker, `14/14` Codex QA, `60/60` Vitest + build, `52/52` Phase 4 E2E, `24/24` Phase 5 E2E, OpenFreeMap Liberty PASS, Visit History UI + `ROUTINE` + live Gnani `P-020` verified, dump `asha_saathi_phase5a_checkpoint_20261122_0235.dump`; awaiting commit approval; 5B–5D deferred** |
 | 6 | Tasks, referrals, guideline versions, terminology, data quality, KPIs | Not started |
 | 7 | Full integrated browser flow (minimal UIs arrive with Phases 4–6) | Not started |
 | 8 | Full QA and release report | Not started |
@@ -238,3 +238,32 @@ Mapping of the handoff's contracts to the code: `docs/V2_CONTRACT_DECISIONS.md`.
 - Kannada UI labels have not been reviewed.
 
 **Next:** Phase 5 needs owner approval.
+
+## Phase 5A: member-linked voice visit (22 Nov 2026)
+
+Full technical handoff and contract map: `docs/v2/PHASE5_HANDOFF.md`.
+
+**Scope**
+- **Migration (`0004`):** Additive `v2_visits` table linking confirmed visits to `people`, `households`, `users`, and `territories` with `UNIQUE (worker_id, client_visit_id)` and structured fields only (no audio, raw transcripts, prompts, or drafts).
+- **Backend:** `/ws/v2/session` (cookie + same-Origin auth, immutable `VisitBinding`, disclosure-gated mic, per-version read-back ack, spoken "ಹೌದು" blocked from saving, periodic and transactional `FOR SHARE` re-authorisation, mother/newborn separation) and scoped history/receipt endpoints (`/api/v2/people/{key}/visits`, `/api/v2/visits/by-client-key/{client_visit_id}`). Feature-flagged OFF by default (`V2_VOICE_ENABLED=false`).
+- **Frontend (`/v2`):** Explicit required visit-type selector (no default), `useV2VoiceSession` + pure `voiceVisitReducer`, `VoiceVisitPanel`, demo-only `V2DangerAlert`, `VisitHistory`, lost-ACK receipt lookup, and `SelectionPanel` integration at 360 px.
+- **Deferred (6 AM demo scope):** Phase 5B (Gemini), Phase 5C (IndicTrans2 research), and Phase 5D (unified extraction).
+
+**Codex QA blocker fixes (22 Nov 2026)**
+- Cross-person attribution (`session_service.py`): single-population V2 sessions reject observations naming another person or ambiguous subjects (`clarification.requested(field="subject")`) and partition danger alerts strictly between `this_visit` and `other_person` without contaminating the bound person's draft.
+- Correction/save race (`session_service.py`, `voice_v2.py`, `voiceVisit.ts`): `_turn_lock` + `_has_pending_speech()` + frontend `speechInProgress` block stale confirmations immediately when speech/correction starts and serialize extraction with confirmation.
+- Failed initial read-back (`session_service.py`): `_readback_synthesized` ensures `_full_readback_done` and `_changed_since_readback` only advance after TTS synthesis succeeds (and in V2 after browser playback ack), so a correction after a failed initial read-back reads the complete record.
+
+**Evidence (Pre-Gemini Checkpoint · 22 Nov 2026 ~02:35 IST · zero new paid Gnani calls):**
+
+| Check | Result |
+| --- | --- |
+| Independent Codex QA (`test_phase5_codex_voice.py` + `test_phase5_codex_postgres.py`, `NOVIX_CODEX_PRIVATE_PG=1` on isolated `novix_codex_e2e`) | **14 passed, 0 failed** (`4.51s`) |
+| Docker suite (`docker compose exec -T api python -m pytest -q -p no:cacheprovider`) | **317 passed, 6 skipped** (Codex PG suite skipped without `NOVIX_CODEX_PRIVATE_PG=1`), **0 failed** (`38.06s`) |
+| Frontend (`npm run typecheck`, `npx vitest run`, `npm run build`) | Typecheck OK, **60 passed** (5 files incl. `visitHistory.test.ts`), build OK |
+| Phase 5 real-browser E2E (`e2e/phase5_browser.py --channel msedge`, `MockVoiceProvider` on `asha_saathi_e2e`, 360/412/1280 px) | **24 passed, 0 failed** (`data/e2e/phase5/report.json`) |
+| Phase 4 real-browser regression + offline map fallback (`e2e/phase4_browser.py --channel msedge`) | **52 passed, 0 failed** (`data/e2e/phase4/report.json`) |
+| OpenFreeMap Liberty basemap check (`frontend/.env.local`) | **PASS** (`200` style & 6 `.pbf` vector tiles, `0` map/console errors, 6 DEMO-A pins, ODbL + synthetic attribution) |
+| Live database & backup (`asha_saathi`) | Alembic `0005` (`routine` visit type), 12 households, 50 people, 55 relationships (`INVARIANTS: OK`), live Gnani `H-005 / P-020` Routine Visit (`55 kg`, `2026-11-28`, `v2`), checkpoint dump `data/backups/asha_saathi_phase5a_checkpoint_20261122_0235.dump` (`53086` bytes, `PGDMP`, `pg_restore --list` OK); `main` unchanged at `aba3f2b` |
+
+**Next:** `PHASE 5A GO` — awaiting owner approval before creating the Phase 5A checkpoint commit and starting Gemini backend planning.

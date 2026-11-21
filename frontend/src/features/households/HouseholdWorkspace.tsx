@@ -176,6 +176,7 @@ export function HouseholdWorkspace({ me, onSessionLost }: Props) {
           <SelectionPanel
             ref={panelHeading}
             selection={selection}
+            canRecord={me.role === "worker"}
             onConfirmHousehold={confirmHousehold}
             onCancelPreview={() => dispatch({ type: "cancel_preview" })}
             onPreviewPerson={(personId) => dispatch({ type: "preview_person", personId })}
@@ -185,6 +186,7 @@ export function HouseholdWorkspace({ me, onSessionLost }: Props) {
               dispatch({ type: "change_household" });
               setStatus("Selection cleared. Choose a household.");
             }}
+            onSessionLost={lost}
           />
         </div>
 

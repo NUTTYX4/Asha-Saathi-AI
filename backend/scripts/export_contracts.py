@@ -15,9 +15,10 @@ from pydantic import BaseModel, TypeAdapter  # noqa: E402
 
 from app.core.config import REPO_ROOT  # noqa: E402
 from app.schemas.auth import LoginRequest, MeOut, TerritoryOut  # noqa: E402
-from app.schemas.events import ClientEvent, ServerEvent  # noqa: E402
+from app.schemas.events import ClientEvent, ServerEvent, V2ClientEvent  # noqa: E402
 from app.schemas.households import HouseholdDetail, HouseholdPin, NearbyHousehold, PersonOut  # noqa: E402
 from app.schemas.visit import FollowUpItem, SavedVisit, VisitRecord  # noqa: E402
+from app.schemas.visits_v2 import V2VisitOut  # noqa: E402
 
 
 class Contracts(BaseModel):
@@ -36,6 +37,9 @@ class Contracts(BaseModel):
     v2_nearby_household: NearbyHousehold
     v2_household_detail: HouseholdDetail
     v2_person: PersonOut
+    # V2 voice visit (Phase 5): client events on /ws/v2/session and the confirmed visit history.
+    v2_client_event: V2ClientEvent
+    v2_visit: V2VisitOut
 
 
 def _strip_property_titles(node: object) -> None:

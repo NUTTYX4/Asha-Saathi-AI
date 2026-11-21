@@ -17,12 +17,15 @@ from app.api.v2 import admin as v2_admin
 from app.api.v2 import auth as v2_auth
 from app.api.v2 import households as v2_households
 from app.api.v2 import territories as v2_territories
+from app.api.v2 import visits as v2_visits
 from app.api.v2 import ws as v2_ws
 from app.auth.ratelimit import LoginRateLimiter, RequestRateLimiter
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.database import connect, connect_postgres
 from app.db.repositories import VisitRepository
+from app.integrations.voice_provider import build_voice_provider
+from app.services.voice_v2 import SessionRegistry
 
 
 def _default_engine() -> Engine:
@@ -43,6 +46,9 @@ def create_app(engine: Engine | None = None) -> FastAPI:
         app.state.repo = VisitRepository(eng)
         app.state.login_limiter = LoginRateLimiter(settings.login_max_failures, settings.login_failure_window_s)
         app.state.discovery_limiter = RequestRateLimiter(settings.discovery_requests_per_minute, 60)
+        # V2 voice (Phase 5): Gnani provider (mock only for the *_e2e database) and live sessions.
+        app.state.voice_provider = build_voice_provider(settings, eng.url.database)
+        app.state.voice_registry = SessionRegistry(settings.voice_max_sessions_per_worker)
         yield
         if engine is None:
             eng.dispose()
@@ -71,6 +77,7 @@ def create_app(engine: Engine | None = None) -> FastAPI:
     app.include_router(v2_territories.router, prefix="/api/v2")
     app.include_router(v2_admin.router, prefix="/api/v2")
     app.include_router(v2_households.router, prefix="/api/v2")
+    app.include_router(v2_visits.router, prefix="/api/v2")
     app.include_router(v2_ws.router)
     return app
 

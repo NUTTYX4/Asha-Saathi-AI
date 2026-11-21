@@ -11,6 +11,10 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
+# Tests assume the safe default V2_VOICE_ENABLED=false even when the operator's .env has it enabled
+# for a live demo; voice tests opt in explicitly via monkeypatch.
+os.environ["V2_VOICE_ENABLED"] = "false"
+
 APP_URL = os.environ.get("DATABASE_URL", "")
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 requires_postgres = pytest.mark.skipif(
@@ -43,3 +47,12 @@ def alembic_config():
     from alembic.config import Config
 
     return Config(os.path.join(BACKEND_DIR, "alembic.ini"))
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _reset_settings_cache():
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()

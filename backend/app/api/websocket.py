@@ -14,24 +14,13 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from app.core.config import get_settings
 from app.integrations.gnani import timbre
-from app.integrations.gnani.prisma import PrismaConnection
+from app.integrations.gnani.prisma import PrismaConnection, describe_stt_model  # noqa: F401 (re-export)
 from app.schemas.events import ClientEvent, RecordConfirm, SessionError, SessionStart, SessionStop
 from app.services.session_service import VoiceSession
 
 log = logging.getLogger(__name__)
 router = APIRouter()
 _client_events = TypeAdapter(ClientEvent)
-
-
-def describe_stt_model(connected: dict, requested: str) -> str:
-    """Prisma silently falls back to v2.5 on a bad model header. Per the docs, only
-    v3.0 adds `request_id` (and language_code/format in config) to `connected`."""
-    config = connected.get("config") or {}
-    if config.get("model"):
-        return str(config["model"])
-    if connected.get("request_id") and "language_code" in config:
-        return f"{requested} (v3.0 fields present)"
-    return f"{requested} (UNCONFIRMED: v3.0 fields missing)"
 
 
 @router.websocket("/ws/session")

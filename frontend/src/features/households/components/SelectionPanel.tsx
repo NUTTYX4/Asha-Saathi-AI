@@ -1,17 +1,21 @@
-import { forwardRef, type ReactNode } from "react";
+import { forwardRef, type ReactNode, useState } from "react";
 
-import type { PersonOut } from "../../../types/contracts";
+import type { HouseholdDetail, PersonOut } from "../../../types/contracts";
+import { VisitHistory } from "../../visits/components/VisitHistory";
+import { VoiceVisitPanel } from "../../voice/v2/VoiceVisitPanel";
 import { activeProgrammes, ageLabel, codeLabel, relationshipLine } from "../labels";
 import type { Selection } from "../selection";
 
 interface Props {
   selection: Selection;
+  canRecord: boolean;
   onConfirmHousehold: () => void;
   onCancelPreview: () => void;
   onPreviewPerson: (personId: string) => void;
   onSelectPerson: () => void;
   onChangeMember: () => void;
   onChangeHousehold: () => void;
+  onSessionLost: () => void;
 }
 
 /** Breadcrumb that always shows exactly what is (and is not) confirmed. */
@@ -32,7 +36,17 @@ export function SelectionBreadcrumb({ selection }: { selection: Selection }) {
 const button = "min-h-12 rounded-xl px-4 font-semibold disabled:opacity-60";
 
 export const SelectionPanel = forwardRef<HTMLHeadingElement, Props>(function SelectionPanel(
-  { selection, onConfirmHousehold, onCancelPreview, onPreviewPerson, onSelectPerson, onChangeMember, onChangeHousehold },
+  {
+    selection,
+    canRecord,
+    onConfirmHousehold,
+    onCancelPreview,
+    onPreviewPerson,
+    onSelectPerson,
+    onChangeMember,
+    onChangeHousehold,
+    onSessionLost,
+  },
   headingRef,
 ) {
   if (selection.phase === "none") {
@@ -143,17 +157,53 @@ export const SelectionPanel = forwardRef<HTMLHeadingElement, Props>(function Sel
 
       {selection.phase === "person_confirmed" && (
         <MemberCard person={selection.person} selected>
-          <p className="mt-2 rounded-xl bg-paper px-3 py-2 text-sm">
-            Member selected. The voice visit for a selected member is the next phase and is not enabled here.
-          </p>
-          <button type="button" onClick={onChangeMember} className={`${button} mt-2 border border-ink`}>
-            Change member
-          </button>
+          <SelectedMemberSection
+            key={selection.person.id}
+            household={household}
+            person={selection.person}
+            canRecord={canRecord}
+            onChangeMember={onChangeMember}
+            onSessionLost={onSessionLost}
+          />
         </MemberCard>
       )}
     </section>
   );
 });
+
+function SelectedMemberSection({
+  household,
+  person,
+  canRecord,
+  onChangeMember,
+  onSessionLost,
+}: {
+  household: HouseholdDetail;
+  person: PersonOut;
+  canRecord: boolean;
+  onChangeMember: () => void;
+  onSessionLost: () => void;
+}) {
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const refreshHistory = () => setHistoryRefreshKey((k) => k + 1);
+
+  return (
+    <>
+      <VisitHistory person={person} refreshKey={historyRefreshKey} onSessionLost={onSessionLost} />
+      <VoiceVisitPanel
+        household={household}
+        person={person}
+        canRecord={canRecord}
+        onSessionLost={onSessionLost}
+        onVisitSaved={refreshHistory}
+        onCheckHistory={refreshHistory}
+      />
+      <button type="button" onClick={onChangeMember} className={`${button} mt-2 border border-ink`}>
+        Change member
+      </button>
+    </>
+  );
+}
 
 function MemberCard({ person, selected = false, children }: { person: PersonOut; selected?: boolean; children: ReactNode }) {
   const programmes = activeProgrammes(person);

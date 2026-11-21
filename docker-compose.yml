@@ -42,6 +42,8 @@ services:
       DATABASE_URL: postgresql+psycopg://asha:${POSTGRES_PASSWORD}@db:5432/asha_saathi
       # Unauthenticated Round 1 endpoints: OFF unless explicitly enabled (shell env or .env).
       LEGACY_ROUND1_API_ENABLED: ${LEGACY_ROUND1_API_ENABLED:-false}
+      # Person-bound voice visits (Phase 5): OFF unless explicitly enabled (shell env or .env).
+      V2_VOICE_ENABLED: ${V2_VOICE_ENABLED:-false}
     ports:
       # Localhost only: the Vite HTTPS dev server proxies /api and /ws here. Not exposed to the LAN.
       - "127.0.0.1:8000:8000"
@@ -65,6 +67,10 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://asha:${POSTGRES_PASSWORD}@db:5432/asha_saathi_e2e
       LEGACY_ROUND1_API_ENABLED: "false"
+      V2_VOICE_ENABLED: "true"
+      # Scripted mock speech for the browser test only; refused for any non-*_e2e database.
+      VOICE_PROVIDER_MODE: mock
+      MOCK_VOICE_SCRIPT: ${MOCK_VOICE_SCRIPT:-}
     ports:
       - "127.0.0.1:8001:8000"
     networks: [dbnet, egress]   # egress only so the localhost port can be published

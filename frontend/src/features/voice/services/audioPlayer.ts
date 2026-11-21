@@ -4,7 +4,13 @@
  * turns. Danger alerts are never cut off.
  */
 
-type Item = { buffer: AudioBuffer; turn: number; purpose: string; gain: number };
+type Item = {
+  buffer: AudioBuffer;
+  turn: number;
+  purpose: string;
+  recordVersion: number | null;
+  gain: number;
+};
 
 // Never cut off by barge-in: the AI disclosure (compliance) and danger referrals (safety).
 const PROTECTED = new Set(["alert", "disclosure"]);
@@ -32,18 +38,27 @@ export class AgentAudioPlayer {
   private queue: Item[] = [];
   private current: { source: AudioBufferSourceNode; item: Item } | null = null;
   private minTurn = 0;
+  private closed = false;
 
-  constructor(private onSpeakingChange: (speaking: boolean) => void) {
+  constructor(
+    private onSpeakingChange: (speaking: boolean) => void,
+    private onClipEnded?: (purpose: string, recordVersion: number | null) => void,
+  ) {
     // Created from a user gesture (the start button) so autoplay policies allow it.
     this.ctx = new AudioContext();
   }
 
-  async enqueue(audioB64: string, turn: number, purpose: string): Promise<void> {
-    if (turn < this.minTurn && !PROTECTED.has(purpose)) return;
+  async enqueue(
+    audioB64: string,
+    turn: number,
+    purpose: string,
+    recordVersion: number | null = null,
+  ): Promise<void> {
+    if (this.closed || (turn < this.minTurn && !PROTECTED.has(purpose))) return;
     const bytes = Uint8Array.from(atob(audioB64), (c) => c.charCodeAt(0));
     const buffer = await this.ctx.decodeAudioData(bytes.buffer);
-    if (turn < this.minTurn && !PROTECTED.has(purpose)) return; // cancelled while decoding
-    const item = { buffer, turn, purpose, gain: normalisingGain(buffer) };
+    if (this.closed || (turn < this.minTurn && !PROTECTED.has(purpose))) return; // cancelled or closed while decoding
+    const item: Item = { buffer, turn, purpose, recordVersion, gain: normalisingGain(buffer) };
     // Alerts jump the queue.
     if (purpose === "alert") this.queue.unshift(item);
     else this.queue.push(item);
@@ -62,6 +77,11 @@ export class AgentAudioPlayer {
   }
 
   private playNext(): void {
+    if (this.closed) {
+      this.current = null;
+      this.onSpeakingChange(false);
+      return;
+    }
     const item = this.queue.shift();
     if (!item) {
       this.current = null;
@@ -75,7 +95,10 @@ export class AgentAudioPlayer {
     source.connect(gain).connect(this.ctx.destination);
     source.onended = () => {
       this.current = null;
-      this.playNext();
+      if (!this.closed) {
+        this.onClipEnded?.(item.purpose, item.recordVersion);
+        this.playNext();
+      }
     };
     this.current = { source, item };
     this.onSpeakingChange(true);
@@ -83,8 +106,18 @@ export class AgentAudioPlayer {
   }
 
   async close(): Promise<void> {
+    this.closed = true;
     this.queue = [];
-    this.current?.source.stop();
+    if (this.current) {
+      this.current.source.onended = null;
+      try {
+        this.current.source.stop();
+      } catch {
+        // ignore if already stopped
+      }
+      this.current = null;
+    }
+    this.onSpeakingChange(false);
     await this.ctx.close();
   }
 }

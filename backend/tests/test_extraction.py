@@ -142,3 +142,29 @@ def test_negated_danger_sign_not_flagged(text, visit):
 def test_unknown_visit_checks_all_populations():
     ids = [m.rule_id for m in detect("bleeding and baby fever", VisitType.UNKNOWN)]
     assert "MAT_VAGINAL_BLEEDING" in ids and "NB_FEVER" in ids
+
+
+@pytest.mark.parametrize("text", ["Normal visit.", "Routine visit", "ಸಾಮಾನ್ಯ ಭೇಟಿ"])
+def test_routine_visit_type_extraction(text):
+    assert extract(text, TODAY).visit_type == VisitType.ROUTINE
+
+
+def test_conversational_intents_distinguished():
+    none_of_these = extract("ಯಾವುದೂ ಅಲ್ಲ.", TODAY)
+    assert none_of_these.is_negative_answer is True
+    assert none_of_these.wants_correction is False
+    assert none_of_these.intent != Intent.REJECT
+
+    standalone_no = extract("ಇಲ್ಲ.", TODAY)
+    assert standalone_no.intent == Intent.REJECT
+    assert standalone_no.wants_correction is False
+
+    for phrase in ("ಯಾವುದೂ ಬದಲಾವಣೆ ಇಲ್ಲ.", "ಯಾವುದೂ ಇಲ್ಲ."):
+        nc = extract(phrase, TODAY)
+        assert nc.intent == Intent.NO_CHANGE
+        assert nc.wants_correction is False
+
+    greeting = extract("Hello.", TODAY)
+    assert greeting.intent == Intent.GREETING
+
+    assert detect("bleeding and fever", VisitType.ROUTINE) == []

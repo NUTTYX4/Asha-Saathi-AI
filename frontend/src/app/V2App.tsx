@@ -19,7 +19,7 @@ function accessKey(me: MeOut): string {
 }
 
 /**
- * ASHA SAATHI 2.0 browser app at /v2 (Phase 4: household map and member selection).
+ * ASHA SAATHI 2.0 browser app at /v2 (Phase 4–5: household map, member selection and voice visit).
  * Uses the Phase 2 session cookie; the Round 1 voice screen at / is unchanged.
  */
 export default function V2App() {

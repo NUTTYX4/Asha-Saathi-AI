@@ -28,6 +28,7 @@ POPULATIONS_BY_VISIT: dict[VisitType, frozenset[str]] = {
     VisitType.PNC: frozenset({"maternal", "newborn"}),  # PNC covers mother and baby
     VisitType.NEWBORN: frozenset({"newborn"}),
     VisitType.IMMUNISATION: frozenset({"newborn"}),
+    VisitType.ROUTINE: frozenset(),  # routine/general visits never apply maternal/newborn rules
     VisitType.UNKNOWN: frozenset({"maternal", "newborn"}),
 }
 

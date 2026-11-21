@@ -1,11 +1,15 @@
 import type {
+  AshaSaathiContracts,
   HouseholdDetail,
   HouseholdPin,
   LoginRequest,
   MeOut,
   NearbyHousehold,
   PersonOut,
+  V2VisitOut,
 } from "../types/contracts";
+
+export type V2ClientEvent = AshaSaathiContracts["v2_client_event"];
 
 /**
  * Authenticated V2 API (same origin; Vite proxies /api). The session is an httpOnly cookie, so
@@ -111,4 +115,27 @@ export const apiV2 = {
   /** Server recheck that this person is an active member of this household. */
   member: (householdId: string, personId: string) =>
     getJson<PersonOut>(`/api/v2/households/${seg(householdId)}/members/${seg(personId)}`),
+  /** Every confirmed visit the caller may see for this person, newest first. */
+  async personVisits(personId: string): Promise<V2VisitOut[]> {
+    const visits: V2VisitOut[] = [];
+    let before: string | null = null;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const params = new URLSearchParams({ limit: "50" });
+      if (before) params.set("before", before);
+      const chunk = await getJson<V2VisitOut[]>(`/api/v2/people/${seg(personId)}/visits?${params}`);
+      visits.push(...chunk);
+      if (chunk.length < 50) break;
+      const last = chunk[chunk.length - 1];
+      if (!last || last.id === before) break;
+      before = last.id;
+    }
+    return visits;
+  },
+  visitReceipt: (clientVisitId: string) =>
+    getJson<V2VisitOut>(`/api/v2/visits/by-client-key/${seg(clientVisitId)}`),
 };
+
+export function v2SessionSocketUrl(): string {
+  const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${scheme}://${window.location.host}/ws/v2/session`;
+}

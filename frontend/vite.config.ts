@@ -23,7 +23,9 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": { target: backend, changeOrigin: true },
-      "/ws": { target: backend.replace(/^http/, "ws"), ws: true, changeOrigin: true },
+      // changeOrigin stays false for /ws: the backend checks Origin == Host on the V2 voice socket,
+      // so the browser's own Host (localhost, LAN IP or the e2e port) must reach it unchanged.
+      "/ws": { target: backend.replace(/^http/, "ws"), ws: true, changeOrigin: false },
     },
   },
 });

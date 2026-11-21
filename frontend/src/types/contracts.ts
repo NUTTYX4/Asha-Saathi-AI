@@ -1,8 +1,8 @@
 /* AUTO-GENERATED from backend Pydantic schemas (contracts/contracts.schema.json). Do not edit; run npm run gen:types. */
 
-export type VisitType = "ANC" | "PNC" | "newborn" | "immunisation" | "unknown";
+export type VisitType = "ANC" | "PNC" | "newborn" | "immunisation" | "routine" | "unknown";
 export type RecordStatus = "draft" | "pending_confirmation" | "confirmed";
-export type VisitType1 = "ANC" | "PNC" | "newborn" | "immunisation" | "unknown";
+export type VisitType1 = "ANC" | "PNC" | "newborn" | "immunisation" | "routine" | "unknown";
 export type SessionState =
   | "idle"
   | "listening"
@@ -14,6 +14,7 @@ export type SessionState =
   | "confirmed"
   | "saved"
   | "error";
+export type VisitType2 = "ANC" | "PNC" | "newborn" | "immunisation" | "routine" | "unknown";
 
 /**
  * Root container so one schema file holds every shared type.
@@ -34,7 +35,10 @@ export interface AshaSaathiContracts {
     | AgentAudioCancel
     | ConfirmationRequested
     | RecordSaved
-    | SessionError;
+    | SessionError
+    | V2SessionBound
+    | V2VisitSaved
+    | SessionEnded;
   client_event: SessionStart | RecordConfirm | SessionStop;
   v2_login_request: LoginRequest;
   v2_me: MeOut;
@@ -43,6 +47,8 @@ export interface AshaSaathiContracts {
   v2_nearby_household: NearbyHousehold;
   v2_household_detail: HouseholdDetail;
   v2_person: PersonOut;
+  v2_client_event: V2SessionStart | RecordConfirm | SessionStop | PlaybackCompleted | ReadbackRequest | SessionCancel;
+  v2_visit: V2VisitOut;
   [k: string]: unknown;
 }
 /**
@@ -144,6 +150,8 @@ export interface AlertRaised {
   rule_ids: string[];
   labels: string[];
   message: string;
+  scope: "this_visit" | "other_person";
+  rule_status: string;
   [k: string]: unknown;
 }
 /**
@@ -157,6 +165,7 @@ export interface AgentSpeech {
   text: string;
   audio_b64: string | null;
   mime_type: string;
+  record_version: number | null;
   [k: string]: unknown;
 }
 export interface AgentAudioCancel {
@@ -187,6 +196,45 @@ export interface SessionError {
   code: string;
   message: string;
   retryable: boolean;
+  [k: string]: unknown;
+}
+/**
+ * V2: the server-verified, immutable subject of this voice session (display fields only).
+ */
+export interface V2SessionBound {
+  seq: number;
+  turn_id: number;
+  type: "v2.session.bound";
+  household_public_id: string;
+  person_public_id: string;
+  person_display_name: string;
+  visit_type: VisitType1;
+  client_visit_id: string;
+  [k: string]: unknown;
+}
+/**
+ * V2: the one confirmed visit for this logical visit key (repeat confirms replay it).
+ */
+export interface V2VisitSaved {
+  seq: number;
+  turn_id: number;
+  type: "v2.visit.saved";
+  visit_id: string;
+  person_public_id: string;
+  record_version: number;
+  confirmed_at: string;
+  idempotent_replay: boolean;
+  [k: string]: unknown;
+}
+/**
+ * V2: the session stopped without saving (revoked, superseded, expired or cancelled).
+ */
+export interface SessionEnded {
+  seq: number;
+  turn_id: number;
+  type: "session.ended";
+  reason: "revoked" | "superseded" | "expired" | "idle" | "cancelled" | "provider_unavailable";
+  message: string;
   [k: string]: unknown;
 }
 export interface SessionStart {
@@ -331,5 +379,58 @@ export interface RelationshipOut {
   direction: "outgoing" | "incoming";
   other_person_public_id: string;
   other_person_name: string;
+  [k: string]: unknown;
+}
+/**
+ * First frame of a V2 voice visit. IDs come from the explicit Phase 4 selection and are
+ * re-authorised by the server; visit_type is the worker's explicit choice (may be unknown).
+ */
+export interface V2SessionStart {
+  type: "v2.session.start";
+  household_id: string;
+  person_id: string;
+  client_visit_id: string;
+  visit_type: VisitType2;
+  [k: string]: unknown;
+}
+/**
+ * The browser finished playing an agent clip. For a read-back it names the version read.
+ */
+export interface PlaybackCompleted {
+  type: "playback.completed";
+  purpose: "disclosure" | "readback";
+  record_version: number | null;
+  [k: string]: unknown;
+}
+/**
+ * Ask for the read-back of the current version again (e.g. after a TTS failure).
+ */
+export interface ReadbackRequest {
+  type: "readback.request";
+  [k: string]: unknown;
+}
+export interface SessionCancel {
+  type: "session.cancel";
+  [k: string]: unknown;
+}
+export interface V2VisitOut {
+  id: string;
+  client_visit_id: string;
+  person_public_id: string;
+  household_public_id: string;
+  recorded_by: string;
+  visit_type: VisitType1;
+  subject_population: string;
+  weight_kg: number | null;
+  vaccinations_due: string[] | null;
+  next_visit_date: string | null;
+  danger_signs: string[];
+  requires_phc_referral: boolean;
+  rule_status: string;
+  ruleset_version: string;
+  extraction_source: string;
+  record_version: number;
+  confirmed_at: string;
+  is_demo_data: boolean;
   [k: string]: unknown;
 }

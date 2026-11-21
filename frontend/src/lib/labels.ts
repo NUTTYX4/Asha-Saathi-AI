@@ -20,6 +20,7 @@ export const VISIT_LABEL: Record<VisitType, { kn: string; en: string }> = {
   PNC: { kn: "ಹೆರಿಗೆ ನಂತರ", en: "PNC" },
   newborn: { kn: "ನವಜಾತ ಶಿಶು", en: "Newborn" },
   immunisation: { kn: "ಲಸಿಕೆ", en: "Immunisation" },
+  routine: { kn: "ಸಾಮಾನ್ಯ ಭೇಟಿ", en: "Routine / General Visit" },
   unknown: { kn: "—", en: "Not given" },
 };
 

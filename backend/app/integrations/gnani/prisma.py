@@ -115,3 +115,14 @@ class PrismaConnection:
             event = parse_message(message)
             if event is not None:
                 yield event
+
+
+def describe_stt_model(connected: dict, requested: str) -> str:
+    """Prisma silently falls back to v2.5 on a bad model header. Per the docs, only
+    v3.0 adds `request_id` (and language_code/format in config) to `connected`."""
+    config = connected.get("config") or {}
+    if config.get("model"):
+        return str(config["model"])
+    if connected.get("request_id") and "language_code" in config:
+        return f"{requested} (v3.0 fields present)"
+    return f"{requested} (UNCONFIRMED: v3.0 fields missing)"

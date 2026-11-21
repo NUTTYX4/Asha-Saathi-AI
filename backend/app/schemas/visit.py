@@ -14,6 +14,7 @@ class VisitType(str, Enum):
     PNC = "PNC"
     NEWBORN = "newborn"
     IMMUNISATION = "immunisation"
+    ROUTINE = "routine"
     UNKNOWN = "unknown"
 
 

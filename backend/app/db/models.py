@@ -327,5 +327,52 @@ class HouseholdSurvey(Base):
     )
 
 
+# ---------------------------------------------------------------- confirmed V2 visits (Phase 5)
+V2_VISIT_TYPES = ("ANC", "PNC", "newborn", "immunisation", "routine", "unknown")
+SUBJECT_POPULATIONS = ("maternal", "newborn", "unresolved")
+EXTRACTION_SOURCES = ("deterministic", "deterministic+assist")
+
+
+class V2Visit(Base):
+    """One explicitly confirmed, person-linked visit. Written once, in one transaction, after
+    the worker confirmed the latest read-back version; a repeat of the same logical visit
+    (worker_id, client_visit_id) returns this row. Never holds audio, transcripts or drafts."""
+
+    __tablename__ = "v2_visits"
+    __table_args__ = (
+        UniqueConstraint("worker_id", "client_visit_id", name="uq_v2_visits_worker_client_visit"),
+        CheckConstraint("record_version >= 1", name="ck_v2_visits_record_version"),
+        CheckConstraint("weight_kg IS NULL OR (weight_kg > 0 AND weight_kg < 250)", name="ck_v2_visits_weight_range"),
+        CheckConstraint(_in("visit_type", V2_VISIT_TYPES), name="ck_v2_visits_visit_type"),
+        CheckConstraint(_in("subject_population", SUBJECT_POPULATIONS), name="ck_v2_visits_subject_population"),
+        CheckConstraint(_in("extraction_source", EXTRACTION_SOURCES), name="ck_v2_visits_extraction_source"),
+        Index("ix_v2_visits_person_confirmed", "person_id", "confirmed_at", "id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    person_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("people.id", ondelete="RESTRICT"), nullable=False)
+    household_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("households.id", ondelete="RESTRICT"), nullable=False)
+    worker_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    territory_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("territories.id", ondelete="RESTRICT"), nullable=False)
+    client_visit_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    session_ref: Mapped[str] = mapped_column(String(32), nullable=False)
+    record_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    visit_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    subject_population: Mapped[str] = mapped_column(String(16), nullable=False)
+    weight_kg: Mapped[float | None] = mapped_column(Float)
+    vaccinations_due: Mapped[list[str] | None] = mapped_column(JSONB(none_as_null=True))
+    next_visit_date: Mapped[date | None] = mapped_column(Date)
+    danger_signs: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    requires_phc_referral: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    ruleset_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    rule_status: Mapped[str] = mapped_column(String(48), nullable=False)
+    extraction_source: Mapped[str] = mapped_column(String(32), nullable=False)
+    payload_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    language: Mapped[str | None] = mapped_column(String(16))
+    confirmed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    is_demo_data: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+
 # Tables the SQLite fallback creates (no PostGIS there).
 SQLITE_TABLES = ("visits", "users", "territories", "territory_assignments", "auth_sessions", "audit_events")

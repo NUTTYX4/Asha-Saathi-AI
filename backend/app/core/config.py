@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -30,6 +31,16 @@ class Settings(BaseSettings):
     # Household/person read endpoints: requests per user per minute (slows scripted scanning;
     # the browser flow needs a handful per minute). Exceeding it returns 429.
     discovery_requests_per_minute: int = Field(default=240, ge=1)
+
+    # V2 voice visits (Phase 5). OFF unless explicitly enabled.
+    v2_voice_enabled: bool = False
+    # "gnani" (production) or "mock" (browser e2e only; refused unless the database is *_e2e).
+    voice_provider_mode: Literal["gnani", "mock"] = "gnani"
+    mock_voice_script: str | None = None          # JSON list of synthetic transcripts (mock only)
+    voice_session_ttl_s: int = Field(default=600, ge=10)
+    voice_idle_timeout_s: int = Field(default=30, ge=5)
+    voice_revalidate_s: float = Field(default=15.0, gt=0)
+    voice_max_sessions_per_worker: int = Field(default=2, ge=1)
     # Round 1 endpoints (/api/visits, /api/followups, /ws/session) have no login.
     # Default: OFF in V2 (PostgreSQL) mode, ON only in the Round 1 SQLite mode.
     # LEGACY_ROUND1_API_ENABLED=true/false overrides the default explicitly.

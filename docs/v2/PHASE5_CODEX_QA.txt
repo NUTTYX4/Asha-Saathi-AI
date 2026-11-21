@@ -1,0 +1,86 @@
+Phase 5A independent backend QA | 22 November 2026 IST
+NO-GO for the 6 AM voice-save demo on the tested snapshot. Testing finished and the production freeze was released.
+
+14 new cases ran, 7 passed and 7 failed.
+  backend/tests/test_phase5_codex_voice.py       2 passed, 6 failed
+  backend/tests/test_phase5_codex_postgres.py    5 passed, 1 failed
+60 existing geo and mocked Timbre unit cases also passed during preparation.
+
+Confirmed blockers and reproduction
+
+1. Wrong-person measurements and danger signs reach confirmed history.
+   Open a mock PNC visit for Kavya Halli in H-003. After disclosure, say "The baby's weight is 3 kg. The baby had a seizure." Then say "Next visit 28 November." Play the read-back and explicitly confirm. The receipt's person-history endpoint returned HTTP 200. Independent SQL on the saved mother's row returned weight 3, ["MAT_CONVULSIONS"], referral true. Expected no weight, seizure flag or referral on the mother from that report, with the danger alert attributed to the baby. Separate newborn unit cases also attached the mother's weight and seizure to the baby.
+   Production: backend/app/services/session_service.py:319, :354, :388 and backend/app/safety/danger_signs.py (assess).
+   Test: backend/tests/test_phase5_codex_postgres.py::test_confirmed_maternal_history_excludes_babys_note
+
+2. An accepted correction can lose the race to an old save click.
+   Read back a 52 kg note and acknowledge playback. Submit "No, weight is 55 kg." Click Confirm after transcript arrival and before delayed extraction completes. The persistence stub received 52. Expected zero writes until the corrected version was played and explicitly confirmed. This case was verified at the service persistence boundary.
+   Production: backend/app/services/session_service.py:211 and :221.
+   Test: backend/tests/test_phase5_codex_voice.py::test_received_correction_prevents_old_save_during_debounce
+
+3. A failed first read-back is treated as complete when composing correction audio.
+   Enter "Weight 52 kg. Next visit 28 November." Fail the first read-back synthesis. Restore TTS and say "No, weight is 55 kg." The first playable read-back contains only the changed weight. Expected it to include the identity, visit type and date too.
+   Production: backend/app/services/session_service.py:477 and :481.
+   Test: backend/tests/test_phase5_codex_voice.py::test_correction_after_first_readback_tts_failure_reads_complete_record
+
+Passing independent controls
+  Duplicate explicit confirmation returned one receipt and one row. Concurrent different payloads for one key yielded one winner and one conflict. Cancellation and assignment revocation after playback each yielded zero rows. Expired login failed the socket handshake. Reconnect required fresh input and playback in the service test. A failed read-back with no playback acknowledgement blocked saving until successful replay. The tested map showed only the worker's six households. Enabled Round 1 visit and follow-up routes returned empty after a V2 save. The five household/person seed tables matched before and after. Transcript and PCM sentinels were absent from visit and audit rows checked after confirmation.
+
+Verification scope
+  PostGIS 17-3.6 ran from a local Docker image with network disabled and an in-memory data directory. A separate runner mounted the backend read-only and shared only the private server's network namespace. The empty database used SQLAlchemy model metadata and synthetic fixtures. No migration ran. The run did not independently certify Alembic 0004, rerun Antigravity's full suites or use live providers. All 14 new cases executed. The disposable server was removed.
+
+Rerun
+  Unit tests, from backend: python -B -m pytest -p no:cacheprovider -q tests/test_phase5_codex_voice.py
+  PostgreSQL file: tests/test_phase5_codex_postgres.py. Supply a fresh network-isolated PostGIS database named novix_codex_e2e. In a runner sharing that private loopback, set NOVIX_CODEX_PRIVATE_PG=1. The fixture uses only its hard-coded private URL and requires empty application tables.
+
+Snapshot
+  Branch v2/backend-foundation. Phase 4 parent 62f44e296e0fedb07129f225f92f8a786d15201f. Phase 5A was uncommitted.
+  Pre/post SHA-256 of the 72-file manifest: 4ff701a33a86160e3b6dd5a57fb39e2e187b76c94cecbaa5487566af976df2e1
+  Manifest covers sorted backend/app, backend/migrations and backend/tests .py/.json files excluding test_phase5_codex_* plus backend/requirements.txt and backend/pytest.ini. Each line is the lowercase on-disk SHA-256, two spaces, repository-relative POSIX path and LF.
+  Pre/post Git status matched after excluding independent QA artifacts.
+  Selected SHA-256 entries
+  ffab6a5e779638e51777d258b2bf09f6c7980d1a6364172f1c90cbe91cd20b68  backend/app/api/v2/visits.py
+  33fcb4f57c0118690b5055f5c6c368ad8a8318b6786d7c1db4389db9625d647e  backend/app/api/v2/ws.py
+  61ccf53d386f1aae9e4356b520bb973e072625fa843c19dff806253f65e8c1c9  backend/app/db/visits_v2.py
+  b81f9ee06573805d8959b368b1a4186fe25f77088157c6b66fcc019a036c316c  backend/app/safety/danger_signs.py
+  84ae0a980d37c14b5ee1b9e2a1ab77ca1aa5fa6daaa92820c5bb73ef4efe730b  backend/app/services/session_service.py
+  3fcd98302f34b0afc434ddd18c875755692b224d1ec04365cd80dc15a26fd6cb  backend/app/services/voice_v2.py
+  b7773999ace232b5b506cac1dc1275d0c1ce1bd93dd995bc95e808a429335ce9  backend/migrations/versions/0004_person_linked_visits.py
+
+  Pre-run Git status (lead working tree)
+   M .env.example
+   M backend/app/api/v2/ws.py
+   M backend/app/api/websocket.py
+   M backend/app/core/config.py
+   M backend/app/db/models.py
+   M backend/app/integrations/gnani/prisma.py
+   M backend/app/main.py
+   M backend/app/schemas/events.py
+   M backend/app/services/prompts.py
+   M backend/app/services/session_service.py
+   M backend/scripts/export_contracts.py
+   M contracts/contracts.schema.json
+   M docker-compose.yml
+   M docs/v2/PROGRESS.md
+   M frontend/src/app/V2App.tsx
+   M frontend/src/features/households/HouseholdWorkspace.tsx
+   M frontend/src/features/households/components/SelectionPanel.tsx
+   M frontend/src/features/voice/services/audioPlayer.ts
+   M frontend/src/lib/apiV2.ts
+   M frontend/src/types/contracts.ts
+   M frontend/vite.config.ts
+  ?? backend/app/api/v2/visits.py
+  ?? backend/app/db/visits_v2.py
+  ?? backend/app/integrations/voice_provider.py
+  ?? backend/app/schemas/visits_v2.py
+  ?? backend/app/services/voice_v2.py
+  ?? backend/migrations/versions/0004_person_linked_visits.py
+  ?? backend/tests/test_voice_v2.py
+  ?? docs/v2/PHASE5_HANDOFF.md
+  ?? e2e/phase5_browser.py
+  ?? frontend/src/features/visits/components/VisitHistory.tsx
+  ?? frontend/src/features/voice/hooks/useV2VoiceSession.ts
+  ?? frontend/src/features/voice/v2/V2DangerAlert.tsx
+  ?? frontend/src/features/voice/v2/VoiceVisitPanel.tsx
+  ?? frontend/src/features/voice/v2/voiceVisit.test.ts
+  ?? frontend/src/features/voice/v2/voiceVisit.ts

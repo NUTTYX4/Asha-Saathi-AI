@@ -118,6 +118,17 @@
         "mime_type": {
           "default": "audio/wav",
           "type": "string"
+        },
+        "record_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -127,7 +138,8 @@
         "purpose",
         "text",
         "audio_b64",
-        "mime_type"
+        "mime_type",
+        "record_version"
       ],
       "title": "AgentSpeech",
       "type": "object"
@@ -161,6 +173,18 @@
         },
         "message": {
           "type": "string"
+        },
+        "scope": {
+          "default": "this_visit",
+          "enum": [
+            "this_visit",
+            "other_person"
+          ],
+          "type": "string"
+        },
+        "rule_status": {
+          "default": "demo_only_pending_clinical_review",
+          "type": "string"
         }
       },
       "required": [
@@ -169,7 +193,9 @@
         "type",
         "rule_ids",
         "labels",
-        "message"
+        "message",
+        "scope",
+        "rule_status"
       ],
       "title": "AlertRaised",
       "type": "object"
@@ -652,6 +678,56 @@
       "title": "PersonOut",
       "type": "object"
     },
+    "PlaybackCompleted": {
+      "description": "The browser finished playing an agent clip. For a read-back it names the version read.",
+      "properties": {
+        "type": {
+          "const": "playback.completed",
+          "default": "playback.completed",
+          "type": "string"
+        },
+        "purpose": {
+          "enum": [
+            "disclosure",
+            "readback"
+          ],
+          "type": "string"
+        },
+        "record_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "type",
+        "purpose",
+        "record_version"
+      ],
+      "title": "PlaybackCompleted",
+      "type": "object"
+    },
+    "ReadbackRequest": {
+      "description": "Ask for the read-back of the current version again (e.g. after a TTS failure).",
+      "properties": {
+        "type": {
+          "const": "readback.request",
+          "default": "readback.request",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ReadbackRequest",
+      "type": "object"
+    },
     "RecordConfirm": {
       "description": "Tap fallback for confirmation; must name the version that was read back.",
       "properties": {
@@ -862,6 +938,61 @@
         "created_at"
       ],
       "title": "SavedVisit",
+      "type": "object"
+    },
+    "SessionCancel": {
+      "properties": {
+        "type": {
+          "const": "session.cancel",
+          "default": "session.cancel",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "SessionCancel",
+      "type": "object"
+    },
+    "SessionEnded": {
+      "description": "V2: the session stopped without saving (revoked, superseded, expired or cancelled).",
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "session.ended",
+          "default": "session.ended",
+          "type": "string"
+        },
+        "reason": {
+          "enum": [
+            "revoked",
+            "superseded",
+            "expired",
+            "idle",
+            "cancelled",
+            "provider_unavailable"
+          ],
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type",
+        "reason",
+        "message"
+      ],
+      "title": "SessionEnded",
       "type": "object"
     },
     "SessionError": {
@@ -1142,6 +1273,248 @@
       "title": "TranscriptFinal",
       "type": "object"
     },
+    "V2SessionBound": {
+      "description": "V2: the server-verified, immutable subject of this voice session (display fields only).",
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "v2.session.bound",
+          "default": "v2.session.bound",
+          "type": "string"
+        },
+        "household_public_id": {
+          "type": "string"
+        },
+        "person_public_id": {
+          "type": "string"
+        },
+        "person_display_name": {
+          "type": "string"
+        },
+        "visit_type": {
+          "$ref": "#/$defs/VisitType"
+        },
+        "client_visit_id": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type",
+        "household_public_id",
+        "person_public_id",
+        "person_display_name",
+        "visit_type",
+        "client_visit_id"
+      ],
+      "title": "V2SessionBound",
+      "type": "object"
+    },
+    "V2SessionStart": {
+      "description": "First frame of a V2 voice visit. IDs come from the explicit Phase 4 selection and are\nre-authorised by the server; visit_type is the worker's explicit choice (may be unknown).",
+      "properties": {
+        "type": {
+          "const": "v2.session.start",
+          "default": "v2.session.start",
+          "type": "string"
+        },
+        "household_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "person_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "client_visit_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "visit_type": {
+          "$ref": "#/$defs/VisitType",
+          "default": "unknown"
+        }
+      },
+      "required": [
+        "type",
+        "household_id",
+        "person_id",
+        "client_visit_id",
+        "visit_type"
+      ],
+      "title": "V2SessionStart",
+      "type": "object"
+    },
+    "V2VisitOut": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "client_visit_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "person_public_id": {
+          "type": "string"
+        },
+        "household_public_id": {
+          "type": "string"
+        },
+        "recorded_by": {
+          "type": "string"
+        },
+        "visit_type": {
+          "$ref": "#/$defs/VisitType"
+        },
+        "subject_population": {
+          "type": "string"
+        },
+        "weight_kg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vaccinations_due": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "next_visit_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "danger_signs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "requires_phc_referral": {
+          "type": "boolean"
+        },
+        "rule_status": {
+          "type": "string"
+        },
+        "ruleset_version": {
+          "type": "string"
+        },
+        "extraction_source": {
+          "type": "string"
+        },
+        "record_version": {
+          "type": "integer"
+        },
+        "confirmed_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "is_demo_data": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "client_visit_id",
+        "person_public_id",
+        "household_public_id",
+        "recorded_by",
+        "visit_type",
+        "subject_population",
+        "weight_kg",
+        "vaccinations_due",
+        "next_visit_date",
+        "danger_signs",
+        "requires_phc_referral",
+        "rule_status",
+        "ruleset_version",
+        "extraction_source",
+        "record_version",
+        "confirmed_at",
+        "is_demo_data"
+      ],
+      "title": "V2VisitOut",
+      "type": "object"
+    },
+    "V2VisitSaved": {
+      "description": "V2: the one confirmed visit for this logical visit key (repeat confirms replay it).",
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "v2.visit.saved",
+          "default": "v2.visit.saved",
+          "type": "string"
+        },
+        "visit_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "person_public_id": {
+          "type": "string"
+        },
+        "record_version": {
+          "type": "integer"
+        },
+        "confirmed_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "idempotent_replay": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type",
+        "visit_id",
+        "person_public_id",
+        "record_version",
+        "confirmed_at",
+        "idempotent_replay"
+      ],
+      "title": "V2VisitSaved",
+      "type": "object"
+    },
     "VisitRecord": {
       "description": "The in-progress or confirmed visit record shared by backend and frontend.",
       "properties": {
@@ -1258,6 +1631,7 @@
         "PNC",
         "newborn",
         "immunisation",
+        "routine",
         "unknown"
       ],
       "title": "VisitType",
@@ -1285,11 +1659,14 @@
           "record.confirmation_requested": "#/$defs/ConfirmationRequested",
           "record.saved": "#/$defs/RecordSaved",
           "record.updated": "#/$defs/RecordUpdated",
+          "session.ended": "#/$defs/SessionEnded",
           "session.error": "#/$defs/SessionError",
           "session.started": "#/$defs/SessionStarted",
           "speech.started": "#/$defs/SpeechStarted",
           "state.changed": "#/$defs/StateChanged",
-          "transcript.final": "#/$defs/TranscriptFinal"
+          "transcript.final": "#/$defs/TranscriptFinal",
+          "v2.session.bound": "#/$defs/V2SessionBound",
+          "v2.visit.saved": "#/$defs/V2VisitSaved"
         },
         "propertyName": "type"
       },
@@ -1329,6 +1706,15 @@
         },
         {
           "$ref": "#/$defs/SessionError"
+        },
+        {
+          "$ref": "#/$defs/V2SessionBound"
+        },
+        {
+          "$ref": "#/$defs/V2VisitSaved"
+        },
+        {
+          "$ref": "#/$defs/SessionEnded"
         }
       ]
     },
@@ -1373,6 +1759,42 @@
     },
     "v2_person": {
       "$ref": "#/$defs/PersonOut"
+    },
+    "v2_client_event": {
+      "discriminator": {
+        "mapping": {
+          "playback.completed": "#/$defs/PlaybackCompleted",
+          "readback.request": "#/$defs/ReadbackRequest",
+          "record.confirm": "#/$defs/RecordConfirm",
+          "session.cancel": "#/$defs/SessionCancel",
+          "session.stop": "#/$defs/SessionStop",
+          "v2.session.start": "#/$defs/V2SessionStart"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/V2SessionStart"
+        },
+        {
+          "$ref": "#/$defs/RecordConfirm"
+        },
+        {
+          "$ref": "#/$defs/SessionStop"
+        },
+        {
+          "$ref": "#/$defs/PlaybackCompleted"
+        },
+        {
+          "$ref": "#/$defs/ReadbackRequest"
+        },
+        {
+          "$ref": "#/$defs/SessionCancel"
+        }
+      ]
+    },
+    "v2_visit": {
+      "$ref": "#/$defs/V2VisitOut"
     }
   },
   "required": [
@@ -1387,7 +1809,9 @@
     "v2_household_pin",
     "v2_nearby_household",
     "v2_household_detail",
-    "v2_person"
+    "v2_person",
+    "v2_client_event",
+    "v2_visit"
   ],
   "title": "AshaSaathiContracts",
   "type": "object"

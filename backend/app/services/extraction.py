@@ -21,6 +21,8 @@ from app.services.numbers import normalize_numbers
 class Intent(str, Enum):
     CONFIRM = "confirm"
     REJECT = "reject"
+    NO_CHANGE = "no_change"
+    GREETING = "greeting"
     NONE = "none"
 
 
@@ -32,6 +34,8 @@ class Extraction:
     vaccinations_due: list[str] | None = None
     next_visit_date: date | None = None
     is_correction: bool = False
+    wants_correction: bool = False
+    is_negative_answer: bool = False
     intent: Intent = Intent.NONE
     normalized_text: str = ""
     fields: list[str] = field(default_factory=list)
@@ -51,7 +55,11 @@ VISIT_KEYWORDS: list[tuple[VisitType, tuple[str, ...]]] = [
                      "ಎ ಎನ್ ಸಿ", "ಏ ಎನ್ ಸಿ", "ಎಎನ್ ಸಿ", "ಎಎನ್‌ಸಿ", "ಎಎನ್ಸಿ", "ಎನ್ ಸಿ")),
     (VisitType.NEWBORN, ("newborn", "new born", "ನವಜಾತ", "ಹಸುಗೂಸು", "ಶಿಶು")),
     (VisitType.IMMUNISATION, ("immunisation", "immunization", "vaccination visit", "ಲಸಿಕೆ ಭೇಟಿ")),
+    (VisitType.ROUTINE, ("routine visit", "general visit", "normal visit", "regular visit",
+                         "general checkup", "normal checkup", "routine",
+                         "ಸಾಮಾನ್ಯ ಭೇಟಿ", "ನಾರ್ಮಲ್ ಭೇಟಿ", "ನಾರ್ಮಲ್ ವಿಸಿಟ್", "ರೂಟೀನ್")),
 ]
+ROUTINE_SHORT_KEYWORDS: tuple[str, ...] = ("normal", "general", "regular", "ಸಾಮಾನ್ಯ", "ನಾರ್ಮಲ್")
 
 VACCINES: list[tuple[str, str]] = [
     ("TT", r"\btt\b|ಟಿಟಿ|ಟಿ ಟಿ"),
@@ -84,6 +92,23 @@ CONFIRM_WORDS = re.compile(
     r"\b(yes|yeah|correct|confirm|save|ok|okay|right)\b|ಹೌದು|ಸರಿ|ಸೇವ್|ಓಕೆ|haudu|sari", re.I
 )
 NEGATION_WORDS = re.compile(r"\b(no|not|wrong|don'?t)\b|ಇಲ್ಲ|ಅಲ್ಲ|ಬೇಡ|ತಪ್ಪು|illa|alla|beda", re.I)
+GREETING_ONLY = re.compile(
+    r"^\s*(?:hello|hi|hey|namaste|namaskara|ನಮಸ್ಕಾರ|ಹಲೋ|ಹಾಯ್)[\s,.!?]*$", re.I
+)
+NO_CHANGE_WORDS = re.compile(
+    r"\b(?:no changes?|nothing to change|nothing else|all good)\b"
+    r"|^\s*nothing[\s,.!?]*$"
+    r"|ಯಾವುದೂ ಬದಲಾವಣೆ ಇಲ್ಲ|ಯಾವುದೇ ಬದಲಾವಣೆ ಇಲ್ಲ|ಬದಲಾವಣೆ ಇಲ್ಲ|ಏನೂ ಬದಲಾವಣೆ ಇಲ್ಲ|ಯಾವುದೂ ಇಲ್ಲ|ಏನೂ ಇಲ್ಲ",
+    re.I,
+)
+NONE_OF_THESE_WORDS = re.compile(
+    r"\b(?:none of (?:these|them|those|the above)|neither)\b|ಯಾವುದೂ ಅಲ್ಲ|ಯಾವುದೇ ಅಲ್ಲ|ಅದು ಅಲ್ಲ",
+    re.I,
+)
+EXPLICIT_CORRECTION_WORDS = re.compile(
+    r"\b(?:wrong|incorrect|change|correct|edit|fix|mistake)\b|ಸರಿ ಇಲ್ಲ|ತಪ್ಪು|ಬದಲಾಯಿಸ|ತಿದ್ದುಪಡಿ",
+    re.I,
+)
 
 MONTHS: dict[str, int] = {}
 for _num in range(1, 13):
@@ -105,7 +130,7 @@ def _beneficiary_id(text: str) -> str | None:
     return code if sum(c.isdigit() for c in code) >= 2 else None
 
 
-def find_visit_type(text: str) -> VisitType | None:
+def find_visit_type(text: str, expecting_visit_type: bool = False) -> VisitType | None:
     """Visit type explicitly named in `text`, if any."""
     lowered = text.lower()
     for visit_type, keywords in VISIT_KEYWORDS:
@@ -113,6 +138,11 @@ def find_visit_type(text: str) -> VisitType | None:
             pattern = rf"\b{re.escape(keyword)}\b" if keyword.isascii() else re.escape(keyword)
             if re.search(pattern, lowered):
                 return visit_type
+    if expecting_visit_type and not re.search(r"\bweight\b|ತೂಕ", lowered):
+        for keyword in ROUTINE_SHORT_KEYWORDS:
+            pattern = rf"\b{re.escape(keyword)}\b" if keyword.isascii() else re.escape(keyword)
+            if re.search(pattern, lowered):
+                return VisitType.ROUTINE
     return None
 
 
@@ -187,22 +217,33 @@ def _next_visit_date(text: str, today: date, expecting_date: bool) -> date | Non
     return None
 
 
-def _intent(text: str, has_fields: bool) -> Intent:
+def _intent(text: str, has_fields: bool) -> tuple[Intent, bool, bool]:
     words = re.findall(r"\S+", text)
     if has_fields:
-        return Intent.NONE
+        return Intent.NONE, False, False
+    if GREETING_ONLY.match(text):
+        return Intent.GREETING, False, False
+    if NO_CHANGE_WORDS.search(text):
+        return Intent.NO_CHANGE, False, False
+    if NONE_OF_THESE_WORDS.search(text):
+        return Intent.NONE, False, True
     if NEGATION_WORDS.search(text):
-        return Intent.REJECT
+        return Intent.REJECT, bool(EXPLICIT_CORRECTION_WORDS.search(text)), True
     if CONFIRM_WORDS.search(text) and len(words) <= 6:
-        return Intent.CONFIRM
-    return Intent.NONE
+        return Intent.CONFIRM, False, False
+    return Intent.NONE, False, False
 
 
-def extract(text: str, today: date, expecting_date: bool = False) -> Extraction:
+def extract(
+    text: str,
+    today: date,
+    expecting_date: bool = False,
+    expecting_visit_type: bool = False,
+) -> Extraction:
     normalized = normalize_numbers(text)
     result = Extraction(normalized_text=normalized)
     result.beneficiary_id = _beneficiary_id(normalized)
-    result.visit_type = find_visit_type(normalized)
+    result.visit_type = find_visit_type(normalized, expecting_visit_type=expecting_visit_type)
     result.weight_kg = _weight(normalized)
     result.vaccinations_due = _vaccinations(normalized)
     result.next_visit_date = _next_visit_date(normalized, today, expecting_date)
@@ -211,5 +252,5 @@ def extract(text: str, today: date, expecting_date: bool = False) -> Extraction:
         if getattr(result, name) is not None
     ]
     result.is_correction = bool(CORRECTION_CUE.search(normalized))
-    result.intent = _intent(normalized, result.has_fields)
+    result.intent, result.wants_correction, result.is_negative_answer = _intent(normalized, result.has_fields)
     return result
