@@ -47,6 +47,8 @@ services:
       # Optional Gemini structured-extraction assist (Phase 5B): OFF unless explicitly enabled.
       GEMINI_EXTRACTION_ENABLED: ${GEMINI_EXTRACTION_ENABLED:-false}
       EXTRACTION_PROVIDER_MODE: ${EXTRACTION_PROVIDER_MODE:-deterministic}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      GEMINI_TIMEOUT_S: ${GEMINI_TIMEOUT_S:-8.0}
     ports:
       # Localhost only: the Vite HTTPS dev server proxies /api and /ws here. Not exposed to the LAN.
       - "127.0.0.1:8000:8000"

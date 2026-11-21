@@ -49,11 +49,27 @@ _WEIGHT_MENTION_RE = re.compile(
 )
 
 _SYSTEM_INSTRUCTION = (
-    "Extract only explicitly stated visit form fields from the health-worker utterance into the "
-    "strict JSON schema. Never invent measurements, diagnoses, danger signs, clinical advice, "
-    "person IDs, or confirmation actions. Set weight or next_visit_date to null and mark "
-    "contradiction_detected=true if conflicting values appear in the same utterance. Set "
-    "mentions_other_person=true if the speaker attributes measurements to a different person."
+    "You extract only explicitly stated MCH home-visit form fields from an ASHA worker's "
+    "Kannada, English, or code-mixed utterance into the strict JSON schema.\n"
+    "Rules:\n"
+    "- Extract only fields explicitly present in the utterance: intent, visit_type, weight (kg), "
+    "next_visit_date (YYYY-MM-DD using reference_date when year is omitted), vaccinations_due, "
+    "is_correction, wants_correction, is_negative_answer, referred_beneficiary_id, "
+    "mentions_other_person, contradiction_detected, needs_clarification, clarification_field.\n"
+    "- Kannada/English examples: 'Normal visit'/'ಸಾಮಾನ್ಯ ಭೇಟಿ' -> visit_type='routine'; "
+    "'ಇಲ್ಲ'/'ಯಾವುದೂ ಅಲ್ಲ'/'none of these' -> is_negative_answer=true, intent='none'; "
+    "'ಹೌದು'/'ಸರಿ'/'yes' -> intent='confirm'; 'ಬೇಡ'/'cancel' -> intent='reject'; "
+    "'ಹಲೋ'/'hello' -> intent='greeting'; 'ಏನೂ ಇಲ್ಲ'/'no change' -> intent='no_change'; "
+    "'ಇಲ್ಲ, ತೂಕ 55 kg'/'no change weight to 55 kg' -> is_correction=true, weight=55 kg.\n"
+    "- Never invent measurements, dates, diagnoses, danger signs, clinical advice, referrals, "
+    "person IDs, or save actions.\n"
+    "- If conflicting values for the same field appear in one utterance (e.g. 'weight 52 kg weight 60 kg' "
+    "without a correction cue), set weight=null and contradiction_detected=true, needs_clarification=true, "
+    "clarification_field='contradiction'.\n"
+    "- If an un-quantified weight or vague date needs clarification, set needs_clarification=true "
+    "with clarification_field ('weight_kg' or 'next_visit_date').\n"
+    "- If the speaker attributes measurements to another family member (husband, wife, sister, neighbor, etc.), "
+    "set mentions_other_person=true, needs_clarification=true, clarification_field='subject'."
 )
 
 
@@ -64,6 +80,10 @@ class ExtractionContext:
     expecting_date: bool = False
     expecting_visit_type: bool = False
     current_visit_type: VisitType = VisitType.UNKNOWN
+    subject_population: str = "unresolved"
+    awaiting_confirmation: bool = False
+    draft_weight_kg: float | None = None
+    draft_next_visit_date: date | None = None
 
 
 @dataclass(frozen=True)
@@ -223,6 +243,10 @@ class MockGeminiExtractionProvider(_AssistedProviderBase):
             expecting_date=ctx.expecting_date,
             expecting_visit_type=ctx.expecting_visit_type,
             current_visit_type=ctx.current_visit_type,
+            subject_population=ctx.subject_population,
+            awaiting_confirmation=ctx.awaiting_confirmation,
+            draft_weight_kg=ctx.draft_weight_kg,
+            draft_next_visit_date=ctx.draft_next_visit_date,
         )
         result = self._responder(bounded_ctx)
         if asyncio.iscoroutine(result) or isinstance(result, Awaitable):
@@ -249,8 +273,10 @@ class GeminiExtractionProvider(_AssistedProviderBase):
             from google import genai
             from google.genai import types
 
+            # Gemini API rejects server deadlines under 10s with 400 INVALID_ARGUMENT;
+            # asyncio.wait_for(..., timeout=self._timeout_s) enforces the tighter client cap.
             http_opts = types.HttpOptions(
-                timeout=max(100, int(self._timeout_s * 1000)),
+                timeout=max(10_000, int(self._timeout_s * 1000)),
                 retry_options=types.HttpRetryOptions(attempts=1),
             )
             if self._client_factory is not None:
@@ -259,25 +285,42 @@ class GeminiExtractionProvider(_AssistedProviderBase):
                 self._client = genai.Client(api_key=self._api_key, http_options=http_opts)
         return self._client
 
+    def _thinking_config(self, types):
+        # Gemini 3.x uses thinking_level (minimum supported on 3.8 Flash is "low");
+        # Gemini 2.5.x uses thinking_budget=0 to minimize latency.
+        if self._model.startswith("gemini-3"):
+            return types.ThinkingConfig(thinking_level="low")
+        return types.ThinkingConfig(thinking_budget=0)
+
     def build_config(self):
         from google.genai import types
 
+        # Pass standard JSON Schema via response_json_schema rather than response_schema:
+        # GeminiCandidate has ConfigDict(extra="forbid"), whose transformed additional_properties
+        # causes a 400 INVALID_ARGUMENT when sent in response_schema. Local Pydantic validation
+        # still enforces extra="forbid" strictly on the returned JSON string.
         return types.GenerateContentConfig(
             system_instruction=_SYSTEM_INSTRUCTION,
             temperature=0.0,
             max_output_tokens=self._max_output_tokens,
-            thinking_config=types.ThinkingConfig(thinking_budget=0),
+            thinking_config=self._thinking_config(types),
             response_mime_type="application/json",
-            response_schema=GeminiCandidate,
+            response_json_schema=GeminiCandidate.model_json_schema(),
         )
 
     @staticmethod
     def build_prompt(ctx: ExtractionContext, bounded_text: str) -> str:
+        draft_date = ctx.draft_next_visit_date.isoformat() if ctx.draft_next_visit_date else "null"
+        draft_weight = f"{ctx.draft_weight_kg:g}" if ctx.draft_weight_kg is not None else "null"
         return (
             f"reference_date={ctx.today.isoformat()}\n"
+            f"subject_population={ctx.subject_population}\n"
             f"current_visit_type={ctx.current_visit_type.value}\n"
             f"expecting_date={ctx.expecting_date}\n"
             f"expecting_visit_type={ctx.expecting_visit_type}\n"
+            f"awaiting_confirmation={ctx.awaiting_confirmation}\n"
+            f"draft_weight_kg={draft_weight}\n"
+            f"draft_next_visit_date={draft_date}\n"
             f"utterance={bounded_text}"
         )
 

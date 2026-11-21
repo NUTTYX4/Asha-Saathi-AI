@@ -38,10 +38,10 @@ class Settings(BaseSettings):
     gemini_extraction_enabled: bool = False
     extraction_provider_mode: Literal["deterministic", "gemini_mock", "gemini"] = "deterministic"
     gemini_api_key: SecretStr | None = None
-    gemini_model: str = "gemini-2.5-flash"
-    gemini_timeout_s: float = Field(default=6.0, gt=0.1, le=30.0)
+    gemini_model: str = "gemini-3.8-flash"
+    gemini_timeout_s: float = Field(default=8.0, gt=0.1, le=30.0)
     gemini_max_input_chars: int = Field(default=1000, ge=50, le=4000)
-    gemini_max_output_tokens: int = Field(default=512, ge=128, le=1024)
+    gemini_max_output_tokens: int = Field(default=768, ge=128, le=2048)
     # "gnani" (production) or "mock" (browser e2e only; refused unless the database is *_e2e).
     voice_provider_mode: Literal["gnani", "mock"] = "gnani"
     mock_voice_script: str | None = None          # JSON list of synthetic transcripts (mock only)

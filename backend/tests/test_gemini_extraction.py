@@ -298,26 +298,51 @@ async def test_no_external_network_and_sdk_config(monkeypatch):
         gemini_extraction_enabled=True,
         extraction_provider_mode="gemini",
         gemini_api_key="SYNTHETIC-TEST-KEY-DO-NOT-LOG",
-        gemini_model="gemini-2.5-flash",
+        gemini_model="gemini-3.8-flash",
         gemini_timeout_s=4.5,
         gemini_max_input_chars=120,
     )
-    assert Settings(_env_file=None).gemini_max_output_tokens == 512
+    defaults = Settings(_env_file=None)
+    assert defaults.gemini_model == "gemini-3.8-flash"
+    assert defaults.gemini_timeout_s == 8.0
+    assert defaults.gemini_max_output_tokens == 768
     provider = GeminiExtractionProvider(settings, client_factory=fake_factory)
     assert "SYNTHETIC-TEST-KEY-DO-NOT-LOG" not in repr(provider)
 
     long_text = "Weight 52 kg, next visit 28 November. " + ("x" * 300)
-    out = await provider.extract(ExtractionContext(text=long_text, today=TODAY, current_visit_type=VisitType.ROUTINE))
+    out = await provider.extract(
+        ExtractionContext(
+            text=long_text,
+            today=TODAY,
+            current_visit_type=VisitType.ROUTINE,
+            subject_population="general",
+            awaiting_confirmation=True,
+            draft_weight_kg=50.0,
+        )
+    )
     assert out.used_assist is True
     assert out.extraction.weight_kg == 52 and out.extraction.next_visit_date == date(2026, 11, 28)
-    assert captured["http_options"].timeout == 4500
+    assert captured["http_options"].timeout == 10_000
     assert captured["http_options"].retry_options.attempts == 1
-    assert captured["config"].max_output_tokens == 512
-    assert captured["config"].thinking_config.thinking_budget == 0
+    assert captured["config"].max_output_tokens == 768
+    assert str(captured["config"].thinking_config.thinking_level).lower().endswith("low")
+    assert captured["config"].thinking_config.thinking_budget is None
     assert captured["config"].temperature == 0.0
-    assert captured["config"].response_schema is GeminiCandidate
-    # Prompt length bounded (`x` tail truncated).
+    assert captured["config"].response_mime_type == "application/json"
+    assert captured["config"].response_schema is None
+    assert captured["config"].response_json_schema == GeminiCandidate.model_json_schema()
+    assert "subject_population=general" in captured["contents"]
+    assert "awaiting_confirmation=True" in captured["contents"]
+    assert "draft_weight_kg=50" in captured["contents"]
+    # Prompt length bounded (`x` tail truncated) and contains zero PII.
     assert captured["contents"].count("x") < 120
+
+    long_provider = GeminiExtractionProvider(
+        settings.model_copy(update={"gemini_timeout_s": 12.5}),
+        client_factory=fake_factory,
+    )
+    await long_provider.extract(ExtractionContext(text="Weight 52 kg", today=TODAY))
+    assert captured["http_options"].timeout == 12_500
 
     # Worst-case fully populated candidate JSON fits well within token budget (~320 chars << ~1500 chars / 512 tokens).
     worst_case = GeminiCandidate(
@@ -727,3 +752,136 @@ async def test_phase5b_acceptance_ws_e2e_h005_p020_gemini_mock(pg_engine, monkey
     finally:
         monkeypatch.undo()
         get_settings.cache_clear()
+
+
+async def test_gemini_sdk_error_fallbacks_and_thinking_config():
+    # Gemini 2.5.x retains thinking_budget=0 while Gemini 3.x uses thinking_level="low".
+    s25 = Settings(
+        _env_file=None,
+        gemini_extraction_enabled=True,
+        extraction_provider_mode="gemini",
+        gemini_api_key="SYNTHETIC-TEST-KEY-DO-NOT-LOG",
+        gemini_model="gemini-2.5-flash",
+    )
+    cfg25 = GeminiExtractionProvider(s25).build_config()
+    assert cfg25.thinking_config.thinking_budget == 0
+    assert cfg25.thinking_config.thinking_level is None
+    assert cfg25.response_schema is None
+    assert cfg25.response_json_schema == GeminiCandidate.model_json_schema()
+
+    from google.genai import errors as genai_errors
+
+    for exc in (
+        genai_errors.ServerError(503, {"error": {"message": "high demand"}}, None),
+        genai_errors.ClientError(400, {"error": {"message": "bad request"}}, None),
+        TimeoutError("deadline exceeded"),
+    ):
+        async def _raise(err=exc, **_kw):
+            raise err
+
+        fake_client = SimpleNamespace(
+            aio=SimpleNamespace(models=SimpleNamespace(generate_content=_raise))
+        )
+        provider = GeminiExtractionProvider(
+            Settings(
+                _env_file=None,
+                gemini_extraction_enabled=True,
+                extraction_provider_mode="gemini",
+                gemini_api_key="SYNTHETIC-TEST-KEY-DO-NOT-LOG",
+                gemini_model="gemini-3.8-flash",
+            ),
+            client_factory=lambda **_kw: fake_client,
+        )
+        out = await provider.extract(
+            ExtractionContext(text="Weight 52 kg, next visit 28 November.", today=TODAY)
+        )
+        assert out.used_assist is False
+        assert out.fallback_reason == ("timeout" if isinstance(exc, TimeoutError) else "provider_error")
+        assert out.extraction.weight_kg == 52 and out.extraction.next_visit_date == date(2026, 11, 28)
+
+    async def _cancel(**_kw):
+        raise asyncio.CancelledError()
+
+    cancel_provider = GeminiExtractionProvider(
+        s25,
+        client_factory=lambda **_kw: SimpleNamespace(
+            aio=SimpleNamespace(models=SimpleNamespace(generate_content=_cancel))
+        ),
+    )
+    with pytest.raises(asyncio.CancelledError):
+        await cancel_provider.extract(ExtractionContext(text="Weight 52 kg", today=TODAY))
+
+
+async def test_voice_session_propagates_non_pii_context_to_gemini_provider(tmp_path):
+    prompts_seen: list[str] = []
+
+    async def _gen(*, model, contents, config):
+        prompts_seen.append(contents)
+        if "draft_weight_kg=52" in contents:
+            return SimpleNamespace(
+                text=json.dumps({
+                    "is_correction": True,
+                    "weight": {"value": 55, "unit": "kg"},
+                })
+            )
+        return SimpleNamespace(
+            text=json.dumps({
+                "visit_type": "routine",
+                "weight": {"value": 52, "unit": "kg"},
+                "next_visit_date": "2026-11-28",
+            })
+        )
+
+    fake_client = SimpleNamespace(aio=SimpleNamespace(models=SimpleNamespace(generate_content=_gen)))
+    provider = GeminiExtractionProvider(
+        Settings(
+            _env_file=None,
+            gemini_extraction_enabled=True,
+            extraction_provider_mode="gemini",
+            gemini_api_key="SYNTHETIC-TEST-KEY-DO-NOT-LOG",
+            gemini_model="gemini-3.8-flash",
+        ),
+        client_factory=lambda **_kw: fake_client,
+    )
+
+    sess, _events = _sqlite_session(tmp_path, extraction_provider=provider)
+    await sess.start()
+    sess.on_playback_completed("disclosure", None)
+    await _drive_say(sess, "Weight 52 kg, ಮುಂದಿನ ಭೇಟಿ November ಇಪ್ಪತ್ತೆಂಟು.")
+    assert sess.record.weight_kg == 52
+    await _drive_say(sess, "ಇಲ್ಲ, ತೂಕ ಐವತ್ತೈದು ಕಿಲೋ.")
+    assert sess.record.weight_kg == 55
+
+    assert len(prompts_seen) == 2
+    assert "subject_population=routine" in prompts_seen[0]
+    assert "awaiting_confirmation=False" in prompts_seen[0]
+    assert "draft_weight_kg=null" in prompts_seen[0]
+    assert "awaiting_confirmation=True" in prompts_seen[1]
+    assert "draft_weight_kg=52" in prompts_seen[1]
+    assert "draft_next_visit_date=2026-11-28" in prompts_seen[1]
+    for p in prompts_seen:
+        assert "P-020" not in p
+        assert "H-005" not in p
+        assert "Shantamma" not in p
+
+    # Newborn scope resolves subject_population="newborn" instead of "general".
+    nb = VoiceSession(
+        lambda _ev: asyncio.sleep(0),
+        lambda _t: asyncio.sleep(0, result=b"RIFF-fake"),
+        VisitRepository(connect(tmp_path / "nb_ctx.db")),
+        today=lambda: TODAY,
+        respond_delay_s=0,
+        require_playback_ack=True,
+        spoken_confirm_saves=False,
+        locked_beneficiary_id="P-011",
+        locked_visit_type=VisitType.NEWBORN,
+        danger_scope=VisitType.NEWBORN,
+        gate_until_disclosure=True,
+        extraction_provider=provider,
+    )
+    await nb.start()
+    nb.on_playback_completed("disclosure", None)
+    await _drive_say(nb, "Weight 3 kg, next visit 28 November.")
+    assert "subject_population=newborn" in prompts_seen[-1]
+    assert "P-011" not in prompts_seen[-1]
+

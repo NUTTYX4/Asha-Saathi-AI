@@ -374,6 +374,14 @@ class VoiceSession:
             self._pending.clear()
             try:
                 await self.set_state(SessionState.PROCESSING)
+                scope = self._danger_scope or self.record.visit_type
+                pops = danger_signs.POPULATIONS_BY_VISIT.get(scope, frozenset())
+                if scope == VisitType.ROUTINE:
+                    subject_population = "routine"
+                elif len(pops) == 1:
+                    subject_population = next(iter(pops))
+                else:
+                    subject_population = "unresolved"
                 outcome = await self._extraction_provider.extract(
                     ExtractionContext(
                         text=text,
@@ -381,6 +389,10 @@ class VoiceSession:
                         expecting_date=self._asked_field == "next_visit_date",
                         expecting_visit_type=self._asked_field == "visit_type",
                         current_visit_type=self.record.visit_type,
+                        subject_population=subject_population,
+                        awaiting_confirmation=self.state_is_awaiting(),
+                        draft_weight_kg=self.record.weight_kg,
+                        draft_next_visit_date=self.record.next_visit_date,
                     )
                 )
                 if not self.active or self._speech_seq != seq:
