@@ -14,7 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from pydantic import BaseModel, TypeAdapter  # noqa: E402
 
 from app.core.config import REPO_ROOT  # noqa: E402
+from app.schemas.auth import LoginRequest, MeOut, TerritoryOut  # noqa: E402
 from app.schemas.events import ClientEvent, ServerEvent  # noqa: E402
+from app.schemas.households import HouseholdDetail, HouseholdPin, NearbyHousehold, PersonOut  # noqa: E402
 from app.schemas.visit import FollowUpItem, SavedVisit, VisitRecord  # noqa: E402
 
 
@@ -26,6 +28,14 @@ class Contracts(BaseModel):
     follow_up_item: FollowUpItem
     server_event: ServerEvent
     client_event: ClientEvent
+    # V2 (authenticated /api/v2): login, territories, household map and member selection.
+    v2_login_request: LoginRequest
+    v2_me: MeOut
+    v2_territory: TerritoryOut
+    v2_household_pin: HouseholdPin
+    v2_nearby_household: NearbyHousehold
+    v2_household_detail: HouseholdDetail
+    v2_person: PersonOut
 
 
 def _strip_property_titles(node: object) -> None:

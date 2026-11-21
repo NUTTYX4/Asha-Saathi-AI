@@ -28,6 +28,13 @@ class HouseholdPin(BaseModel):
     is_demo_data: bool
 
 
+class NearbyHousehold(HouseholdPin):
+    """A map pin plus its server-computed distance from the query point (metres, geography).
+    A suggestion only: being near a pin never selects or confirms that household."""
+
+    distance_m: float
+
+
 class SurveyOut(BaseModel):
     survey_version: str
     status: str

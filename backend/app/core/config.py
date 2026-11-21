@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     session_cookie_secure: bool = True
     login_max_failures: int = 5          # per username+client within the window
     login_failure_window_s: int = 300
+    # Household/person read endpoints: requests per user per minute (slows scripted scanning;
+    # the browser flow needs a handful per minute). Exceeding it returns 429.
+    discovery_requests_per_minute: int = Field(default=240, ge=1)
     # Round 1 endpoints (/api/visits, /api/followups, /ws/session) have no login.
     # Default: OFF in V2 (PostgreSQL) mode, ON only in the Round 1 SQLite mode.
     # LEGACY_ROUND1_API_ENABLED=true/false overrides the default explicitly.

@@ -57,6 +57,19 @@ services:
     networks: [dbnet, egress]
     restart: unless-stopped
 
+  # Browser end-to-end tests only (e2e/phase4_browser.py). Not started by a plain `docker compose up`:
+  # it serves the disposable asha_saathi_e2e database, never the app database, and gets no Gnani key.
+  api-e2e:
+    profiles: ["e2e"]
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://asha:${POSTGRES_PASSWORD}@db:5432/asha_saathi_e2e
+      LEGACY_ROUND1_API_ENABLED: "false"
+    ports:
+      - "127.0.0.1:8001:8000"
+    networks: [dbnet, egress]   # egress only so the localhost port can be published
+    restart: "no"
+
 networks:
   dbnet:
     internal: true   # no outbound internet for the database network

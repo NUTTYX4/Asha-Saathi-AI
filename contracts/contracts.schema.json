@@ -1,5 +1,55 @@
 {
   "$defs": {
+    "AgeOut": {
+      "properties": {
+        "basis": {
+          "enum": [
+            "date_of_birth",
+            "recorded_age",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "years": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "months": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "basis"
+      ],
+      "title": "AgeOut",
+      "type": "object"
+    },
     "AgentAudioCancel": {
       "properties": {
         "seq": {
@@ -184,6 +234,31 @@
       "title": "ConfirmationRequested",
       "type": "object"
     },
+    "EnrolmentOut": {
+      "properties": {
+        "programme": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "started_on": {
+          "format": "date",
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "programme",
+        "status",
+        "started_on",
+        "source"
+      ],
+      "title": "EnrolmentOut",
+      "type": "object"
+    },
     "FollowUpItem": {
       "properties": {
         "visit_id": {
@@ -239,6 +314,342 @@
         "danger_signs"
       ],
       "title": "FollowUpItem",
+      "type": "object"
+    },
+    "HouseholdDetail": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "public_id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "landmark": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "territory_code": {
+          "type": "string"
+        },
+        "latitude": {
+          "type": "number"
+        },
+        "longitude": {
+          "type": "number"
+        },
+        "location_source": {
+          "type": "string"
+        },
+        "member_count": {
+          "type": "integer"
+        },
+        "is_demo_data": {
+          "type": "boolean"
+        },
+        "latest_survey": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SurveyOut"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "public_id",
+        "label",
+        "landmark",
+        "territory_code",
+        "latitude",
+        "longitude",
+        "location_source",
+        "member_count",
+        "is_demo_data",
+        "latest_survey"
+      ],
+      "title": "HouseholdDetail",
+      "type": "object"
+    },
+    "HouseholdPin": {
+      "description": "Map-safe summary: location and counts only (no programmes, no conditions).",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "public_id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "landmark": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "territory_code": {
+          "type": "string"
+        },
+        "latitude": {
+          "type": "number"
+        },
+        "longitude": {
+          "type": "number"
+        },
+        "location_source": {
+          "type": "string"
+        },
+        "member_count": {
+          "type": "integer"
+        },
+        "is_demo_data": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "public_id",
+        "label",
+        "landmark",
+        "territory_code",
+        "latitude",
+        "longitude",
+        "location_source",
+        "member_count",
+        "is_demo_data"
+      ],
+      "title": "HouseholdPin",
+      "type": "object"
+    },
+    "LoginRequest": {
+      "properties": {
+        "username": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "password": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "username",
+        "password"
+      ],
+      "title": "LoginRequest",
+      "type": "object"
+    },
+    "MeOut": {
+      "properties": {
+        "user_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "worker",
+            "supervisor",
+            "admin"
+          ],
+          "type": "string"
+        },
+        "territories": {
+          "items": {
+            "$ref": "#/$defs/TerritoryOut"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "user_id",
+        "username",
+        "display_name",
+        "role",
+        "territories"
+      ],
+      "title": "MeOut",
+      "type": "object"
+    },
+    "NearbyHousehold": {
+      "description": "A map pin plus its server-computed distance from the query point (metres, geography).\nA suggestion only: being near a pin never selects or confirms that household.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "public_id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "landmark": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "territory_code": {
+          "type": "string"
+        },
+        "latitude": {
+          "type": "number"
+        },
+        "longitude": {
+          "type": "number"
+        },
+        "location_source": {
+          "type": "string"
+        },
+        "member_count": {
+          "type": "integer"
+        },
+        "is_demo_data": {
+          "type": "boolean"
+        },
+        "distance_m": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "public_id",
+        "label",
+        "landmark",
+        "territory_code",
+        "latitude",
+        "longitude",
+        "location_source",
+        "member_count",
+        "is_demo_data",
+        "distance_m"
+      ],
+      "title": "NearbyHousehold",
+      "type": "object"
+    },
+    "PersonOut": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "public_id": {
+          "type": "string"
+        },
+        "household_public_id": {
+          "type": "string"
+        },
+        "full_name": {
+          "type": "string"
+        },
+        "sex": {
+          "enum": [
+            "female",
+            "male",
+            "other",
+            "not_recorded"
+          ],
+          "type": "string"
+        },
+        "date_of_birth": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "age": {
+          "$ref": "#/$defs/AgeOut"
+        },
+        "relationship_to_head": {
+          "enum": [
+            "head",
+            "spouse",
+            "son",
+            "daughter",
+            "father",
+            "mother",
+            "father_in_law",
+            "mother_in_law",
+            "son_in_law",
+            "daughter_in_law",
+            "grandson",
+            "granddaughter",
+            "brother",
+            "sister",
+            "other"
+          ],
+          "type": "string"
+        },
+        "residence_status": {
+          "type": "string"
+        },
+        "programmes": {
+          "items": {
+            "$ref": "#/$defs/EnrolmentOut"
+          },
+          "type": "array"
+        },
+        "relationships": {
+          "items": {
+            "$ref": "#/$defs/RelationshipOut"
+          },
+          "type": "array"
+        },
+        "is_demo_data": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "public_id",
+        "household_public_id",
+        "full_name",
+        "sex",
+        "date_of_birth",
+        "age",
+        "relationship_to_head",
+        "residence_status",
+        "programmes",
+        "relationships",
+        "is_demo_data"
+      ],
+      "title": "PersonOut",
       "type": "object"
     },
     "RecordConfirm": {
@@ -334,6 +745,34 @@
         "changed_fields"
       ],
       "title": "RecordUpdated",
+      "type": "object"
+    },
+    "RelationshipOut": {
+      "properties": {
+        "relationship_type": {
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "outgoing",
+            "incoming"
+          ],
+          "type": "string"
+        },
+        "other_person_public_id": {
+          "type": "string"
+        },
+        "other_person_name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "relationship_type",
+        "direction",
+        "other_person_public_id",
+        "other_person_name"
+      ],
+      "title": "RelationshipOut",
       "type": "object"
     },
     "SavedVisit": {
@@ -598,6 +1037,71 @@
       "title": "StateChanged",
       "type": "object"
     },
+    "SurveyOut": {
+      "properties": {
+        "survey_version": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "drinking_water_source": {
+          "type": "string"
+        },
+        "has_toilet": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "submitted_on": {
+          "format": "date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "survey_version",
+        "status",
+        "drinking_water_source",
+        "has_toilet",
+        "submitted_on"
+      ],
+      "title": "SurveyOut",
+      "type": "object"
+    },
+    "TerritoryOut": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "is_demo_data": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "code",
+        "name",
+        "active",
+        "is_demo_data"
+      ],
+      "title": "TerritoryOut",
+      "type": "object"
+    },
     "TranscriptFinal": {
       "properties": {
         "seq": {
@@ -848,6 +1352,27 @@
           "$ref": "#/$defs/SessionStop"
         }
       ]
+    },
+    "v2_login_request": {
+      "$ref": "#/$defs/LoginRequest"
+    },
+    "v2_me": {
+      "$ref": "#/$defs/MeOut"
+    },
+    "v2_territory": {
+      "$ref": "#/$defs/TerritoryOut"
+    },
+    "v2_household_pin": {
+      "$ref": "#/$defs/HouseholdPin"
+    },
+    "v2_nearby_household": {
+      "$ref": "#/$defs/NearbyHousehold"
+    },
+    "v2_household_detail": {
+      "$ref": "#/$defs/HouseholdDetail"
+    },
+    "v2_person": {
+      "$ref": "#/$defs/PersonOut"
     }
   },
   "required": [
@@ -855,7 +1380,14 @@
     "saved_visit",
     "follow_up_item",
     "server_event",
-    "client_event"
+    "client_event",
+    "v2_login_request",
+    "v2_me",
+    "v2_territory",
+    "v2_household_pin",
+    "v2_nearby_household",
+    "v2_household_detail",
+    "v2_person"
   ],
   "title": "AshaSaathiContracts",
   "type": "object"

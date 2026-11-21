@@ -18,7 +18,7 @@ from app.api.v2 import auth as v2_auth
 from app.api.v2 import households as v2_households
 from app.api.v2 import territories as v2_territories
 from app.api.v2 import ws as v2_ws
-from app.auth.ratelimit import LoginRateLimiter
+from app.auth.ratelimit import LoginRateLimiter, RequestRateLimiter
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.database import connect, connect_postgres
@@ -42,6 +42,7 @@ def create_app(engine: Engine | None = None) -> FastAPI:
         app.state.engine = eng
         app.state.repo = VisitRepository(eng)
         app.state.login_limiter = LoginRateLimiter(settings.login_max_failures, settings.login_failure_window_s)
+        app.state.discovery_limiter = RequestRateLimiter(settings.discovery_requests_per_minute, 60)
         yield
         if engine is None:
             eng.dispose()

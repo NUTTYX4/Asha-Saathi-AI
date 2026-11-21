@@ -11,6 +11,7 @@
     "gen:types": "json2ts -i ../contracts/contracts.schema.json -o src/types/contracts.ts --bannerComment \"/* AUTO-GENERATED from backend Pydantic schemas (contracts/contracts.schema.json). Do not edit; run npm run gen:types. */\""
   },
   "dependencies": {
+    "maplibre-gl": "6.16.0",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
@@ -23,6 +24,7 @@
     "json-schema-to-typescript": "15.0.4",
     "tailwindcss": "4.1.7",
     "typescript": "5.8.3",
-    "vite": "6.3.5"
+    "vite": "6.3.5",
+    "vitest": "4.1.12"
   }
 }

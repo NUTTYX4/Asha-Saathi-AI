@@ -36,6 +36,13 @@ export interface AshaSaathiContracts {
     | RecordSaved
     | SessionError;
   client_event: SessionStart | RecordConfirm | SessionStop;
+  v2_login_request: LoginRequest;
+  v2_me: MeOut;
+  v2_territory: TerritoryOut;
+  v2_household_pin: HouseholdPin;
+  v2_nearby_household: NearbyHousehold;
+  v2_household_detail: HouseholdDetail;
+  v2_person: PersonOut;
   [k: string]: unknown;
 }
 /**
@@ -196,5 +203,133 @@ export interface RecordConfirm {
 }
 export interface SessionStop {
   type: "session.stop";
+  [k: string]: unknown;
+}
+export interface LoginRequest {
+  username: string;
+  password: string;
+  [k: string]: unknown;
+}
+export interface MeOut {
+  user_id: string;
+  username: string;
+  display_name: string;
+  role: "worker" | "supervisor" | "admin";
+  territories: TerritoryOut[];
+  [k: string]: unknown;
+}
+export interface TerritoryOut {
+  id: string;
+  code: string;
+  name: string;
+  active: boolean;
+  is_demo_data: boolean;
+  [k: string]: unknown;
+}
+/**
+ * Map-safe summary: location and counts only (no programmes, no conditions).
+ */
+export interface HouseholdPin {
+  id: string;
+  public_id: string;
+  label: string;
+  landmark: string | null;
+  territory_code: string;
+  latitude: number;
+  longitude: number;
+  location_source: string;
+  member_count: number;
+  is_demo_data: boolean;
+  [k: string]: unknown;
+}
+/**
+ * A map pin plus its server-computed distance from the query point (metres, geography).
+ * A suggestion only: being near a pin never selects or confirms that household.
+ */
+export interface NearbyHousehold {
+  id: string;
+  public_id: string;
+  label: string;
+  landmark: string | null;
+  territory_code: string;
+  latitude: number;
+  longitude: number;
+  location_source: string;
+  member_count: number;
+  is_demo_data: boolean;
+  distance_m: number;
+  [k: string]: unknown;
+}
+export interface HouseholdDetail {
+  id: string;
+  public_id: string;
+  label: string;
+  landmark: string | null;
+  territory_code: string;
+  latitude: number;
+  longitude: number;
+  location_source: string;
+  member_count: number;
+  is_demo_data: boolean;
+  latest_survey: SurveyOut | null;
+  [k: string]: unknown;
+}
+export interface SurveyOut {
+  survey_version: string;
+  status: string;
+  drinking_water_source: string;
+  has_toilet: boolean | null;
+  submitted_on: string;
+  [k: string]: unknown;
+}
+export interface PersonOut {
+  id: string;
+  public_id: string;
+  household_public_id: string;
+  full_name: string;
+  sex: "female" | "male" | "other" | "not_recorded";
+  date_of_birth: string | null;
+  age: AgeOut;
+  relationship_to_head:
+    | "head"
+    | "spouse"
+    | "son"
+    | "daughter"
+    | "father"
+    | "mother"
+    | "father_in_law"
+    | "mother_in_law"
+    | "son_in_law"
+    | "daughter_in_law"
+    | "grandson"
+    | "granddaughter"
+    | "brother"
+    | "sister"
+    | "other";
+  residence_status: string;
+  programmes: EnrolmentOut[];
+  relationships: RelationshipOut[];
+  is_demo_data: boolean;
+  [k: string]: unknown;
+}
+export interface AgeOut {
+  basis: "date_of_birth" | "recorded_age" | "unknown";
+  years?: number | null;
+  months?: number | null;
+  days?: number | null;
+  [k: string]: unknown;
+}
+export interface EnrolmentOut {
+  programme: string;
+  status: string;
+  started_on: string;
+  source: string;
+  [k: string]: unknown;
+}
+export interface RelationshipOut {
+  relationship_type: string;
+  direction: "outgoing" | "incoming";
+  other_person_public_id: string;
+  other_person_name: string;
   [k: string]: unknown;
 }

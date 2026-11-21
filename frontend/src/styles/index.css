@@ -96,3 +96,31 @@ body {
     animation: none;
   }
 }
+
+/* V2 household map pins (DOM markers, keyboard-focusable buttons). MapLibre positions them with
+   an inline transform, so the active state uses a ring rather than scale. */
+.asha-pin {
+  display: grid;
+  place-items: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.45rem;
+  border: 2px solid #fff;
+  border-radius: 9999px;
+  background: var(--color-rose);
+  color: #fff;
+  font: 700 0.8rem/1 var(--font-body);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+  cursor: pointer;
+}
+
+.asha-pin:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.asha-pin--active {
+  z-index: 2;
+  background: var(--color-ink);
+  box-shadow: 0 0 0 4px rgb(176 40 95 / 0.45), 0 1px 4px rgb(0 0 0 / 0.35);
+}

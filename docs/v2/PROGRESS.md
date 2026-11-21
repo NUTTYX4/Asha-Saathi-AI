@@ -1,6 +1,11 @@
 # ASHA SAATHI AI 2.0: progress log and verification checklist
 
-Brief: `ASHA_SAATHI_AI_V2_ENGINEERING_MASTER_PLAN.md` (Section 15 is authoritative).
+Briefs:
+- Phases 0–3: `ASHA_SAATHI_AI_V2_ENGINEERING_MASTER_PLAN.md` (Section 15).
+- Phase 4 onwards: the owner-approved combined handoff, `01_NOVIX_V2_COMBINED_ENGINEERING_HANDOFF.md`. Its reconciled sections 0–7 take precedence.
+- Neither brief is committed to the repo.
+- Contract mapping: `docs/V2_CONTRACT_DECISIONS.md`.
+
 Branch: `v2/backend-foundation`. Round 1 baseline: `main` at `aba3f2b` (pushed).
 
 ## Phase checklist
@@ -11,10 +16,10 @@ Branch: `v2/backend-foundation`. Round 1 baseline: `main` at `aba3f2b` (pushed).
 | 1 | Docker Compose + PostgreSQL/PostGIS + SQLAlchemy/Alembic, Round 1 contracts kept | **Done (gates passed)** |
 | 2 | Auth, roles, territories, audit; REST and WebSocket denial tests | **Done (gates passed)** |
 | 3 | Households/people/relationships + 12-house/50-person idempotent seed | **Done (gates passed)** |
-| 4 | PostGIS spatial APIs, manual search fallback | Not started |
-| 5 | Household/person-bound Gnani visit flow saved to PostgreSQL | Not started |
+| 4 | Secure map discovery (list/search/bbox/nearby), household confirmation, member selection, minimal browser UI at `/v2` | **Done, awaiting owner review (not committed)** |
+| 5 | Household/person-bound Gnani visit flow saved to PostgreSQL | Not started (needs owner approval) |
 | 6 | Tasks, referrals, guideline versions, terminology, data quality, KPIs | Not started |
-| 7 | Minimal browser UI | Not started |
+| 7 | Full integrated browser flow (minimal UIs arrive with Phases 4–6) | Not started |
 | 8 | Full QA and release report | Not started |
 | 9+ | Polished UI, Android (separate approval) | Not in scope |
 
@@ -190,3 +195,46 @@ birth relative to the demo date.
   person yet (Phase 5).
 
 **Next:** Phase 4 (spatial search APIs, manual-search fallback). Waiting for approval.
+
+## Phase 4: secure map discovery, household confirmation, member selection (21 Nov 2026)
+
+Mapping of the handoff's contracts to the code: `docs/V2_CONTRACT_DECISIONS.md`.
+
+**Scope**
+- **No schema change and no seed change.**
+- **Backend:**
+  - Search (`q`), `bbox`, keyset paging (`after` / `X-Next-After`) and the territory filter on `GET /api/v2/households`.
+  - New `GET /api/v2/households/nearby`: PostGIS geography metres, ties broken by ID.
+  - New `GET /api/v2/households/{h}/members/{p}`: the server recheck behind "Select member".
+  - Uniform, audited 404s (`access.denied`).
+  - Relationship names limited to the caller's territories.
+  - Per-user read limit (429).
+  - Query strings redacted from access logs, and SQL parameters hidden in error text.
+- **Browser (`/v2`):**
+  - Login and a synthetic-data banner.
+  - MapLibre pins: a plain basemap by default; OpenFreeMap is opt-in.
+  - Accessible list, search and a one-shot GPS hint that never selects anything.
+  - Preview → Confirm household → members → Select member, with a breadcrumb.
+  - The selection resets on household change, logout, session loss and grant change.
+- **Round 1 at `/` is unchanged.**
+
+**Evidence**
+
+| Check | Result |
+| --- | --- |
+| Docker suite | **275 passed** (133 baseline + 142 Phase 4) |
+| Host suite | 149 passed, 126 skipped (PostgreSQL-only) |
+| Frontend | typecheck and build pass. Vitest: **40 passed** (selection state machine, geo helpers, routing) |
+| Real browser (Edge 158, `e2e/phase4_browser.py`, disposable `asha_saathi_e2e`) | **52 passed, 0 failed**. Viewports 360, 412 and 1280 px. 19 screenshots in `data/e2e/phase4/`, with no unexpected console errors |
+| Live database after all runs | 12 households, 50 people. Demo accounts still inactive. INVARIANTS: OK |
+| Independent review (4 lenses + adversarial verifiers) | 12 confirmed findings, all P2, all fixed and covered by tests. No P0/P1 |
+| Gnani | Not called in Phase 4. The adapters are unchanged |
+
+**Remaining risks:**
+- The rate limiter is in memory.
+- Supervisor pins overlap at full zoom-out; zoom in or use the list.
+- The dev-only Vite 6.3.5 advisory is pre-existing.
+- The OpenFreeMap terms await owner acceptance.
+- Kannada UI labels have not been reviewed.
+
+**Next:** Phase 5 needs owner approval.

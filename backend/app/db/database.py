@@ -30,7 +30,8 @@ def connect(db_file: Path) -> Engine:
 
 def connect_postgres(url: str) -> Engine:
     """PostgreSQL engine. Assumes `alembic upgrade head` has already run."""
-    return create_engine(url, pool_pre_ping=True)
+    # hide_parameters: SQL errors never echo bound values (search text, coordinates) into logs.
+    return create_engine(url, pool_pre_ping=True, hide_parameters=True)
 
 
 def backend_name(engine: Engine) -> str:

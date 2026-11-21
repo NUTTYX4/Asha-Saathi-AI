@@ -20,6 +20,8 @@ Voice-first field register for ASHA workers (Gnani PS1). Hackathon prototype; sy
 - Backend tests: `cd backend && .venv\Scripts\python -m pytest -q`
 - Live Gnani smoke test (spends credits): `.venv\Scripts\python -m scripts.smoke_gnani`
 - Frontend check: `cd frontend && npm run typecheck && npm run build`
+- Frontend unit tests: `cd frontend && npx vitest run`
+- V2 browser e2e (disposable `asha_saathi_e2e` DB, no external requests): `uv run --no-project --with playwright==1.64.1 python -I e2e/phase4_browser.py --channel msedge`
 - The user runs the dev servers in their own terminals (see README "Run"). Backend log: `data/backend.log`.
   In Windows PowerShell 5.1, never pipe uvicorn through `2>&1 | Tee-Object`: the server exits. Use the
   `cmd /c "... > ..\data\backend.log 2>&1"` form instead.

@@ -10,6 +10,7 @@ The V2 backend runs only in Docker. Round 1 (SQLite, local uvicorn) is preserved
 | `db` | `postgis/postgis:17-3.6` | PostgreSQL 17 + PostGIS 3.6, data in the `pgdata` volume | None: internal Docker network only |
 | `migrate` | built from `backend/Dockerfile` | One-off `alembic upgrade head`, runs before the API | Internal only |
 | `api` | built from `backend/Dockerfile` | FastAPI, non-root user (uid 10001) | `127.0.0.1:8000` only (Vite proxies `/api` and `/ws`) |
+| `api-e2e` | built from `backend/Dockerfile` | Browser tests only (profile `e2e`), serves the disposable `asha_saathi_e2e` database. Never started by a plain `docker compose up` | `127.0.0.1:8001` while a test runs |
 
 Secrets come from the git-ignored repository-root `.env`: `GNANI_API_KEY` and `POSTGRES_PASSWORD`.
 
@@ -26,8 +27,38 @@ docker compose down                              # stop; data stays in the pgdat
 
 **Never run `docker compose down -v` on real data:** `-v` deletes the database volume.
 
-The frontend is unchanged: in `frontend\`, run `npm run dev`. It proxies to `127.0.0.1:8000`, so
-the browser and phone flow works the same against the container.
+In `frontend\`, run `npm run dev`. It proxies to `127.0.0.1:8000`, so the browser and phone flow
+works the same against the container.
+
+- **`https://localhost:5173/v2`** is the V2 household map (Phase 4). Sign in, then:
+  1. Pick a pin, list row, search result or GPS suggestion. This is only a candidate.
+  2. Press **Confirm household**.
+  3. Choose a member, then press **Select member**.
+- **`https://localhost:5173/`** is the unchanged Round 1 voice screen. In V2 it needs the Round 1
+  endpoints, which are off by default (see below).
+- **Basemap:** by default the map is a plain background with no external requests. To show streets,
+  first accept the provider's terms (see `docs/V2_CONTRACT_DECISIONS.md` §6). Then create
+  `frontend\.env.local`, which is git-ignored, containing
+  `VITE_MAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty`, and restart `npm run dev`.
+
+## Frontend checks and browser end-to-end tests
+
+```powershell
+cd frontend; npm run typecheck; npx vitest run; npm run build    # types, unit tests, production build
+cd ..; uv run --no-project --with playwright==1.64.1 python -I e2e/phase4_browser.py --channel msedge
+```
+
+The browser test leaves the app database and its accounts alone:
+
+- **Setup:** it creates a separate database, `asha_saathi_e2e`, from the synthetic seed.
+- **One-time passwords:** they apply only to that database, are sent over stdin, and are never
+  printed.
+- **Servers:** it starts the `api-e2e` container (compose profile `e2e`, `127.0.0.1:8001`, no Gnani
+  key) and a plain-HTTP Vite server on `localhost:5174`.
+- **External requests:** none. The basemap style is answered locally, and every other external
+  request is refused.
+- **Teardown:** it always stops both servers and drops the e2e database.
+- **Output:** screenshots and `report.json` go to `data\e2e\phase4\`, which is git-ignored.
 
 ## Synthetic demo data and accounts
 
