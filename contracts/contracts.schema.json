@@ -1,0 +1,862 @@
+{
+  "$defs": {
+    "AgentAudioCancel": {
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "agent.audio.cancel",
+          "default": "agent.audio.cancel",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type"
+      ],
+      "title": "AgentAudioCancel",
+      "type": "object"
+    },
+    "AgentSpeech": {
+      "description": "Agent utterance: text plus base64 WAV from Timbre (audio absent if TTS failed).",
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "agent.audio",
+          "default": "agent.audio",
+          "type": "string"
+        },
+        "purpose": {
+          "enum": [
+            "disclosure",
+            "clarification",
+            "readback",
+            "alert",
+            "saved",
+            "info"
+          ],
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "audio_b64": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mime_type": {
+          "default": "audio/wav",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type",
+        "purpose",
+        "text",
+        "audio_b64",
+        "mime_type"
+      ],
+      "title": "AgentSpeech",
+      "type": "object"
+    },
+    "AlertRaised": {
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "alert.raised",
+          "default": "alert.raised",
+          "type": "string"
+        },
+        "rule_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "labels": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type",
+        "rule_ids",
+        "labels",
+        "message"
+      ],
+      "title": "AlertRaised",
+      "type": "object"
+    },
+    "ClarificationRequested": {
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "clarification.requested",
+          "default": "clarification.requested",
+          "type": "string"
+        },
+        "field": {
+          "type": "string"
+        },
+        "prompt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type",
+        "field",
+        "prompt"
+      ],
+      "title": "ClarificationRequested",
+      "type": "object"
+    },
+    "ConfirmationRequested": {
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "record.confirmation_requested",
+          "default": "record.confirmation_requested",
+          "type": "string"
+        },
+        "record_version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type",
+        "record_version"
+      ],
+      "title": "ConfirmationRequested",
+      "type": "object"
+    },
+    "FollowUpItem": {
+      "properties": {
+        "visit_id": {
+          "type": "integer"
+        },
+        "beneficiary_id": {
+          "type": "string"
+        },
+        "visit_type": {
+          "$ref": "#/$defs/VisitType"
+        },
+        "due_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vaccinations_due": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "requires_phc_referral": {
+          "type": "boolean"
+        },
+        "danger_signs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "visit_id",
+        "beneficiary_id",
+        "visit_type",
+        "due_date",
+        "vaccinations_due",
+        "requires_phc_referral",
+        "danger_signs"
+      ],
+      "title": "FollowUpItem",
+      "type": "object"
+    },
+    "RecordConfirm": {
+      "description": "Tap fallback for confirmation; must name the version that was read back.",
+      "properties": {
+        "type": {
+          "const": "record.confirm",
+          "default": "record.confirm",
+          "type": "string"
+        },
+        "record_version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "record_version"
+      ],
+      "title": "RecordConfirm",
+      "type": "object"
+    },
+    "RecordSaved": {
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "record.saved",
+          "default": "record.saved",
+          "type": "string"
+        },
+        "visit_id": {
+          "type": "integer"
+        },
+        "record": {
+          "$ref": "#/$defs/VisitRecord"
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type",
+        "visit_id",
+        "record"
+      ],
+      "title": "RecordSaved",
+      "type": "object"
+    },
+    "RecordStatus": {
+      "enum": [
+        "draft",
+        "pending_confirmation",
+        "confirmed"
+      ],
+      "title": "RecordStatus",
+      "type": "string"
+    },
+    "RecordUpdated": {
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "record.updated",
+          "default": "record.updated",
+          "type": "string"
+        },
+        "record": {
+          "$ref": "#/$defs/VisitRecord"
+        },
+        "changed_fields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type",
+        "record",
+        "changed_fields"
+      ],
+      "title": "RecordUpdated",
+      "type": "object"
+    },
+    "SavedVisit": {
+      "description": "A confirmed visit as persisted. No transcripts or audio are stored.",
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "beneficiary_id": {
+          "type": "string"
+        },
+        "visit_type": {
+          "$ref": "#/$defs/VisitType"
+        },
+        "weight_kg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vaccinations_due": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "next_visit_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "danger_signs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "requires_phc_referral": {
+          "type": "boolean"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "record_version": {
+          "type": "integer"
+        },
+        "created_at": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "beneficiary_id",
+        "visit_type",
+        "weight_kg",
+        "vaccinations_due",
+        "next_visit_date",
+        "danger_signs",
+        "requires_phc_referral",
+        "language",
+        "record_version",
+        "created_at"
+      ],
+      "title": "SavedVisit",
+      "type": "object"
+    },
+    "SessionError": {
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "session.error",
+          "default": "session.error",
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "retryable": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type",
+        "code",
+        "message",
+        "retryable"
+      ],
+      "title": "SessionError",
+      "type": "object"
+    },
+    "SessionStart": {
+      "properties": {
+        "type": {
+          "const": "session.start",
+          "default": "session.start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "SessionStart",
+      "type": "object"
+    },
+    "SessionStarted": {
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "session.started",
+          "default": "session.started",
+          "type": "string"
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "stt_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type",
+        "session_id",
+        "stt_model"
+      ],
+      "title": "SessionStarted",
+      "type": "object"
+    },
+    "SessionState": {
+      "enum": [
+        "idle",
+        "listening",
+        "transcribing",
+        "processing",
+        "clarifying",
+        "reading_back",
+        "awaiting_confirmation",
+        "confirmed",
+        "saved",
+        "error"
+      ],
+      "title": "SessionState",
+      "type": "string"
+    },
+    "SessionStop": {
+      "properties": {
+        "type": {
+          "const": "session.stop",
+          "default": "session.stop",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "SessionStop",
+      "type": "object"
+    },
+    "SpeechStarted": {
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "speech.started",
+          "default": "speech.started",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type"
+      ],
+      "title": "SpeechStarted",
+      "type": "object"
+    },
+    "StateChanged": {
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "state.changed",
+          "default": "state.changed",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/SessionState"
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type",
+        "state"
+      ],
+      "title": "StateChanged",
+      "type": "object"
+    },
+    "TranscriptFinal": {
+      "properties": {
+        "seq": {
+          "default": 0,
+          "type": "integer"
+        },
+        "turn_id": {
+          "default": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "transcript.final",
+          "default": "transcript.final",
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "seq",
+        "turn_id",
+        "type",
+        "text",
+        "language"
+      ],
+      "title": "TranscriptFinal",
+      "type": "object"
+    },
+    "VisitRecord": {
+      "description": "The in-progress or confirmed visit record shared by backend and frontend.",
+      "properties": {
+        "beneficiary_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "visit_type": {
+          "$ref": "#/$defs/VisitType",
+          "default": "unknown"
+        },
+        "weight_kg": {
+          "anyOf": [
+            {
+              "exclusiveMaximum": 250,
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "vaccinations_due": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "next_visit_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "danger_signs": {
+          "description": "Matched safety rule IDs",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "requires_phc_referral": {
+          "default": false,
+          "type": "boolean"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "status": {
+          "$ref": "#/$defs/RecordStatus",
+          "default": "draft"
+        },
+        "record_version": {
+          "default": 0,
+          "type": "integer"
+        },
+        "missing_fields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "beneficiary_id",
+        "visit_type",
+        "weight_kg",
+        "vaccinations_due",
+        "next_visit_date",
+        "danger_signs",
+        "requires_phc_referral",
+        "language",
+        "status",
+        "record_version",
+        "missing_fields"
+      ],
+      "title": "VisitRecord",
+      "type": "object"
+    },
+    "VisitType": {
+      "enum": [
+        "ANC",
+        "PNC",
+        "newborn",
+        "immunisation",
+        "unknown"
+      ],
+      "title": "VisitType",
+      "type": "string"
+    }
+  },
+  "description": "Root container so one schema file holds every shared type.",
+  "properties": {
+    "visit_record": {
+      "$ref": "#/$defs/VisitRecord"
+    },
+    "saved_visit": {
+      "$ref": "#/$defs/SavedVisit"
+    },
+    "follow_up_item": {
+      "$ref": "#/$defs/FollowUpItem"
+    },
+    "server_event": {
+      "discriminator": {
+        "mapping": {
+          "agent.audio": "#/$defs/AgentSpeech",
+          "agent.audio.cancel": "#/$defs/AgentAudioCancel",
+          "alert.raised": "#/$defs/AlertRaised",
+          "clarification.requested": "#/$defs/ClarificationRequested",
+          "record.confirmation_requested": "#/$defs/ConfirmationRequested",
+          "record.saved": "#/$defs/RecordSaved",
+          "record.updated": "#/$defs/RecordUpdated",
+          "session.error": "#/$defs/SessionError",
+          "session.started": "#/$defs/SessionStarted",
+          "speech.started": "#/$defs/SpeechStarted",
+          "state.changed": "#/$defs/StateChanged",
+          "transcript.final": "#/$defs/TranscriptFinal"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SessionStarted"
+        },
+        {
+          "$ref": "#/$defs/StateChanged"
+        },
+        {
+          "$ref": "#/$defs/SpeechStarted"
+        },
+        {
+          "$ref": "#/$defs/TranscriptFinal"
+        },
+        {
+          "$ref": "#/$defs/RecordUpdated"
+        },
+        {
+          "$ref": "#/$defs/ClarificationRequested"
+        },
+        {
+          "$ref": "#/$defs/AlertRaised"
+        },
+        {
+          "$ref": "#/$defs/AgentSpeech"
+        },
+        {
+          "$ref": "#/$defs/AgentAudioCancel"
+        },
+        {
+          "$ref": "#/$defs/ConfirmationRequested"
+        },
+        {
+          "$ref": "#/$defs/RecordSaved"
+        },
+        {
+          "$ref": "#/$defs/SessionError"
+        }
+      ]
+    },
+    "client_event": {
+      "discriminator": {
+        "mapping": {
+          "record.confirm": "#/$defs/RecordConfirm",
+          "session.start": "#/$defs/SessionStart",
+          "session.stop": "#/$defs/SessionStop"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SessionStart"
+        },
+        {
+          "$ref": "#/$defs/RecordConfirm"
+        },
+        {
+          "$ref": "#/$defs/SessionStop"
+        }
+      ]
+    }
+  },
+  "required": [
+    "visit_record",
+    "saved_visit",
+    "follow_up_item",
+    "server_event",
+    "client_event"
+  ],
+  "title": "AshaSaathiContracts",
+  "type": "object"
+}

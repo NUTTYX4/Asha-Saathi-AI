@@ -1,0 +1,109 @@
+{
+  "_comment": "Deterministic danger-sign rules. Every rule must cite a public-health source. STATUS: source sections and Kannada keywords are PENDING VERIFICATION (see docs/danger-sign-sources.md). Do not add clinical rules without a cited source.",
+  "referral_message": {
+    "kn-IN": "ಅಪಾಯದ ಲಕ್ಷಣ ಕಂಡುಬಂದಿದೆ: {label}. ದಯವಿಟ್ಟು ಈಗಲೇ PHC ಗೆ ರೆಫರ್ ಮಾಡಿ.",
+    "en-IN": "Danger sign noted: {label}. Please refer to the PHC now."
+  },
+  "sources": {
+    "WHO_PCPNC_2015": {
+      "title": "Pregnancy, Childbirth, Postpartum and Newborn Care: A guide for essential practice (3rd edition)",
+      "publisher": "World Health Organization",
+      "year": 2015,
+      "isbn": "9789241549356",
+      "verification": "pending: exact section/page references not yet confirmed"
+    }
+  },
+  "rules": [
+    {
+      "id": "MAT_VAGINAL_BLEEDING",
+      "population": "maternal",
+      "label": {"kn-IN": "ರಕ್ತಸ್ರಾವ", "en-IN": "Vaginal bleeding"},
+      "keywords": ["bleeding", "ರಕ್ತಸ್ರಾವ", "ರಕ್ತ ಹೋಗ", "ರಕ್ತ ಬರ", "ರಕ್ತ ಸೋರ"],
+      "source": "WHO_PCPNC_2015"
+    },
+    {
+      "id": "MAT_CONVULSIONS",
+      "population": "maternal",
+      "label": {"kn-IN": "ಫಿಟ್ಸ್ / ಸೆಳೆತ", "en-IN": "Convulsions"},
+      "keywords": ["convulsion", "fits", "seizure", "ಫಿಟ್ಸ್", "ಸೆಳೆತ", "ಸೆಳವು"],
+      "source": "WHO_PCPNC_2015"
+    },
+    {
+      "id": "MAT_SEVERE_HEADACHE_BLURRED_VISION",
+      "population": "maternal",
+      "label": {"kn-IN": "ತೀವ್ರ ತಲೆನೋವು ಅಥವಾ ಮಸುಕಾದ ದೃಷ್ಟಿ", "en-IN": "Severe headache or blurred vision"},
+      "keywords": ["severe headache", "blurred vision", "blurry vision", "ತೀವ್ರ ತಲೆನೋವು", "ತುಂಬಾ ತಲೆನೋವು", "ಜಾಸ್ತಿ ತಲೆನೋವು", "ಕಣ್ಣು ಮಂಜು", "ಕಣ್ಣು ಮಸುಕು"],
+      "source": "WHO_PCPNC_2015"
+    },
+    {
+      "id": "MAT_HIGH_FEVER",
+      "population": "maternal",
+      "label": {"kn-IN": "ತೀವ್ರ ಜ್ವರ", "en-IN": "High fever"},
+      "keywords": ["high fever", "ತೀವ್ರ ಜ್ವರ", "ತುಂಬಾ ಜ್ವರ", "ಜಾಸ್ತಿ ಜ್ವರ"],
+      "source": "WHO_PCPNC_2015"
+    },
+    {
+      "id": "MAT_SEVERE_ABDOMINAL_PAIN",
+      "population": "maternal",
+      "label": {"kn-IN": "ತೀವ್ರ ಹೊಟ್ಟೆ ನೋವು", "en-IN": "Severe abdominal pain"},
+      "keywords": ["severe abdominal pain", "severe stomach pain", "ತೀವ್ರ ಹೊಟ್ಟೆ ನೋವು", "ತುಂಬಾ ಹೊಟ್ಟೆ ನೋವು", "ಜಾಸ್ತಿ ಹೊಟ್ಟೆ ನೋವು"],
+      "source": "WHO_PCPNC_2015"
+    },
+    {
+      "id": "MAT_DIFFICULT_BREATHING",
+      "population": "maternal",
+      "label": {"kn-IN": "ಉಸಿರಾಟದ ತೊಂದರೆ", "en-IN": "Fast or difficult breathing"},
+      "keywords": ["difficulty breathing", "difficult breathing", "breathing difficulty", "breathlessness", "fast breathing", "ಉಸಿರಾಟದ ತೊಂದರೆ", "ಉಸಿರಾಡಲು ಕಷ್ಟ", "ಉಸಿರು ಕಟ್ಟ"],
+      "source": "WHO_PCPNC_2015"
+    },
+    {
+      "id": "NB_NOT_FEEDING",
+      "population": "newborn",
+      "label": {"kn-IN": "ಹಾಲು ಕುಡಿಯುತ್ತಿಲ್ಲ", "en-IN": "Not feeding well"},
+      "keywords": ["not feeding", "not sucking", "feeding problem", "ಹಾಲು ಕುಡಿಯುತ್ತಿಲ್ಲ", "ಹಾಲು ಕುಡೀತಿಲ್ಲ", "ಹಾಲು ಕುಡಿತಿಲ್ಲ", "ಹಾಲು ಕುಡಿಯಲ್ಲ", "ಹಾಲು ಚೀಪುತ್ತಿಲ್ಲ"],
+      "source": "WHO_PCPNC_2015"
+    },
+    {
+      "id": "NB_CONVULSIONS",
+      "population": "newborn",
+      "label": {"kn-IN": "ಮಗುವಿಗೆ ಫಿಟ್ಸ್ / ಸೆಳೆತ", "en-IN": "Convulsions in newborn"},
+      "keywords": ["convulsion", "fits", "seizure", "ಫಿಟ್ಸ್", "ಸೆಳೆತ", "ಸೆಳವು"],
+      "source": "WHO_PCPNC_2015"
+    },
+    {
+      "id": "NB_FAST_BREATHING_CHEST_INDRAWING",
+      "population": "newborn",
+      "label": {"kn-IN": "ವೇಗದ ಉಸಿರಾಟ ಅಥವಾ ಎದೆ ಒಳಗೆ ಎಳೆಯುವುದು", "en-IN": "Fast breathing or chest indrawing"},
+      "keywords": ["fast breathing", "difficulty breathing", "breathing difficulty", "chest indrawing", "ವೇಗವಾಗಿ ಉಸಿರಾಡ", "ಉಸಿರಾಟದ ತೊಂದರೆ", "ಉಸಿರಾಡಲು ಕಷ್ಟ", "ಎದೆ ಒಳಗೆ ಎಳೆ"],
+      "source": "WHO_PCPNC_2015"
+    },
+    {
+      "id": "NB_FEVER",
+      "population": "newborn",
+      "label": {"kn-IN": "ಮಗುವಿಗೆ ಜ್ವರ", "en-IN": "Fever in newborn"},
+      "keywords": ["fever", "ಜ್ವರ", "ಮೈ ಬಿಸಿ", "ಮೈ ಕಾವು"],
+      "source": "WHO_PCPNC_2015"
+    },
+    {
+      "id": "NB_TOO_COLD",
+      "population": "newborn",
+      "label": {"kn-IN": "ಮಗುವಿನ ಮೈ ತಣ್ಣಗಿದೆ", "en-IN": "Newborn too cold"},
+      "keywords": ["cold to touch", "hypothermia", "ಮೈ ತಣ್ಣಗ", "ತಣ್ಣಗಿದೆ"],
+      "source": "WHO_PCPNC_2015"
+    },
+    {
+      "id": "NB_NO_MOVEMENT",
+      "population": "newborn",
+      "label": {"kn-IN": "ಮಗು ಚಲಿಸುತ್ತಿಲ್ಲ", "en-IN": "No movement / lethargic"},
+      "keywords": ["not moving", "no movement", "lethargic", "unconscious", "ಚಲನೆ ಇಲ್ಲ", "ಅಲುಗಾಡುತ್ತಿಲ್ಲ", "ಚಲಿಸುತ್ತಿಲ್ಲ"],
+      "source": "WHO_PCPNC_2015"
+    },
+    {
+      "id": "NB_YELLOW_PALMS_SOLES",
+      "population": "newborn",
+      "label": {"kn-IN": "ಅಂಗೈ ಅಥವಾ ಅಂಗಾಲು ಹಳದಿ", "en-IN": "Yellow palms or soles"},
+      "keywords": ["yellow palms", "yellow soles", "jaundice", "ಕಾಮಾಲೆ", "ಅಂಗೈ ಹಳದಿ", "ಅಂಗಾಲು ಹಳದಿ"],
+      "source": "WHO_PCPNC_2015"
+    }
+  ]
+}

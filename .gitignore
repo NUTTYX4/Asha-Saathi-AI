@@ -46,6 +46,13 @@ tmp/
 logs/
 *.log
 
+# Local tool configuration (personal, not part of the project)
+.serena/
+.mcp.json
+
+# Local data directory (SQLite database)
+data/
+
 # OS & Editor files
 .DS_Store
 Thumbs.db
