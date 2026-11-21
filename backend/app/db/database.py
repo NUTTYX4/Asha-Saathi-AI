@@ -11,7 +11,7 @@ from pathlib import Path
 
 from sqlalchemy import Engine, create_engine, event, text
 
-from app.db.models import Base
+from app.db.models import SQLITE_TABLES, Base
 
 
 def connect(db_file: Path) -> Engine:
@@ -23,7 +23,8 @@ def connect(db_file: Path) -> Engine:
     def _sqlite_pragmas(dbapi_conn, _record):  # pragma: no cover - trivial
         dbapi_conn.execute("PRAGMA foreign_keys=ON")
 
-    Base.metadata.create_all(engine)
+    # Only non-spatial tables: households/people need PostGIS and exist only on PostgreSQL.
+    Base.metadata.create_all(engine, tables=[Base.metadata.tables[name] for name in SQLITE_TABLES])
     return engine
 
 

@@ -29,6 +29,34 @@ docker compose down                              # stop; data stays in the pgdat
 The frontend is unchanged: in `frontend\`, run `npm run dev`. It proxies to `127.0.0.1:8000`, so
 the browser and phone flow works the same against the container.
 
+## Synthetic demo data and accounts
+
+```powershell
+docker compose exec api python -m scripts.seed_demo            # add anything missing (safe to repeat), then check
+docker compose exec api python -m scripts.seed_demo --check    # read-only invariant report
+docker compose exec api python -m scripts.set_password --demo-accounts   # interactive; activates the 4 demo accounts
+docker compose exec api python -m scripts.set_password --username demo_worker_a
+docker compose exec api python -m scripts.create_user --username admin --display-name "Admin" --role admin
+backend\.venv\Scripts\python -m scripts.verify_demo_pins       # from backend\, needs internet (OpenStreetMap)
+```
+
+- **Passwords:** they're typed interactively, never shown, and never logged. The seed never changes
+  existing rows, accounts or passwords.
+- **Demo accounts:** `demo_worker_a` (Territory A, H-001..006), `demo_worker_b` (Territory B,
+  H-007..012), `demo_supervisor` (both, read-only), and `demo_admin`.
+
+## Round 1 endpoints in V2
+
+`/api/visits`, `/api/followups` and `/ws/session` have no login, so they're **off by default** in
+Docker. For a temporary Round 1-UI demo only:
+
+```powershell
+$env:LEGACY_ROUND1_API_ENABLED = "true"; docker compose up -d api      # on
+Remove-Item Env:LEGACY_ROUND1_API_ENABLED; docker compose up -d api    # off again
+```
+
+`GET /api/health` shows the current state in `legacy_round1_api`.
+
 ## Backup and restore
 
 ```powershell

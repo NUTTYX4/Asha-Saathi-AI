@@ -19,4 +19,6 @@ def health(request: Request) -> dict:
         # Added in V2 (backward compatible): which database is in use and whether it answers.
         "database": backend_name(engine),
         "database_ok": db_ok,
+        # Whether the unauthenticated Round 1 endpoints are mounted (off by default in V2).
+        "legacy_round1_api": settings.legacy_round1_enabled,
     }

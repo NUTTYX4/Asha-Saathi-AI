@@ -19,7 +19,7 @@ class TerritoryOut(BaseModel):
     code: str
     name: str
     active: bool
-    is_demo: bool
+    is_demo_data: bool
 
 
 class MeOut(BaseModel):

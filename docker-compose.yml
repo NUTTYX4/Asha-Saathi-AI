@@ -40,6 +40,8 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://asha:${POSTGRES_PASSWORD}@db:5432/asha_saathi
+      # Unauthenticated Round 1 endpoints: OFF unless explicitly enabled (shell env or .env).
+      LEGACY_ROUND1_API_ENABLED: ${LEGACY_ROUND1_API_ENABLED:-false}
     ports:
       # Localhost only: the Vite HTTPS dev server proxies /api and /ws here. Not exposed to the LAN.
       - "127.0.0.1:8000:8000"

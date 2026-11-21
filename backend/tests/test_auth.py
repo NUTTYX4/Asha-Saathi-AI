@@ -244,13 +244,25 @@ def test_ws_authenticated_same_origin_accepted(env):
 
 
 # ------------------------------------------------------------------ Round 1 compatibility switch
-def test_legacy_round1_api_can_be_disabled(tmp_path, monkeypatch):
-    monkeypatch.setenv("LEGACY_ROUND1_API_ENABLED", "false")
+def test_legacy_default_off_in_v2_postgres_mode_and_on_only_in_sqlite_mode():
+    from app.core.config import Settings
+
+    v2 = Settings(_env_file=None, database_url="postgresql+psycopg://u:p@db/x", legacy_round1_api_enabled=None)
+    r1 = Settings(_env_file=None, database_url=None, legacy_round1_api_enabled=None)
+    assert v2.legacy_round1_enabled is False   # V2: unauthenticated Round 1 endpoints off by default
+    assert r1.legacy_round1_enabled is True    # Round 1 SQLite workflow unchanged
+    assert Settings(_env_file=None, database_url="postgresql+psycopg://u:p@db/x",
+                    legacy_round1_api_enabled=True).legacy_round1_enabled is True  # explicit opt-in only
+
+
+@pytest.mark.parametrize(("flag", "visits_status"), [("false", 404), ("true", 200)])
+def test_legacy_round1_api_switch(tmp_path, monkeypatch, flag, visits_status):
+    monkeypatch.setenv("LEGACY_ROUND1_API_ENABLED", flag)
     get_settings.cache_clear()
     try:
         with TestClient(create_app(connect(tmp_path / "l.db")), base_url="https://testserver") as client:
-            assert client.get("/api/visits").status_code == 404
-            assert client.get("/api/health").status_code == 200
+            assert client.get("/api/visits").status_code == visits_status
+            assert client.get("/api/health").json()["legacy_round1_api"] is (flag == "true")
     finally:
         monkeypatch.delenv("LEGACY_ROUND1_API_ENABLED")
         get_settings.cache_clear()

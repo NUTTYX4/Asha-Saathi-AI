@@ -15,6 +15,7 @@ from app.api import websocket
 from app.api.routes import health, visits
 from app.api.v2 import admin as v2_admin
 from app.api.v2 import auth as v2_auth
+from app.api.v2 import households as v2_households
 from app.api.v2 import territories as v2_territories
 from app.api.v2 import ws as v2_ws
 from app.auth.ratelimit import LoginRateLimiter
@@ -62,12 +63,13 @@ def create_app(engine: Engine | None = None) -> FastAPI:
         return response
 
     app.include_router(health.router, prefix="/api")
-    if settings.legacy_round1_api_enabled:
+    if settings.legacy_round1_enabled:
         app.include_router(visits.router, prefix="/api")
         app.include_router(websocket.router)
     app.include_router(v2_auth.router, prefix="/api/v2")
     app.include_router(v2_territories.router, prefix="/api/v2")
     app.include_router(v2_admin.router, prefix="/api/v2")
+    app.include_router(v2_households.router, prefix="/api/v2")
     app.include_router(v2_ws.router)
     return app
 

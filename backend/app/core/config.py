@@ -27,9 +27,10 @@ class Settings(BaseSettings):
     session_cookie_secure: bool = True
     login_max_failures: int = 5          # per username+client within the window
     login_failure_window_s: int = 300
-    # Round 1 endpoints (/api/visits, /api/followups, /ws/session) have no login. Kept on until
-    # the V2 UI replaces them (Phase 7); then set LEGACY_ROUND1_API_ENABLED=false.
-    legacy_round1_api_enabled: bool = True
+    # Round 1 endpoints (/api/visits, /api/followups, /ws/session) have no login.
+    # Default: OFF in V2 (PostgreSQL) mode, ON only in the Round 1 SQLite mode.
+    # LEGACY_ROUND1_API_ENABLED=true/false overrides the default explicitly.
+    legacy_round1_api_enabled: bool | None = None
 
     # Gnani API Platform. SecretStr keeps the key out of reprs and logs.
     gnani_api_key: SecretStr | None = None
@@ -48,6 +49,12 @@ class Settings(BaseSettings):
     timbre_voice: str = "Shruthi"
     timbre_language: str = "kn-IN"
     timbre_sample_rate: int = 24000
+
+    @property
+    def legacy_round1_enabled(self) -> bool:
+        if self.legacy_round1_api_enabled is not None:
+            return self.legacy_round1_api_enabled
+        return self.database_url is None  # SQLite (Round 1) mode only
 
     @property
     def cors_origin_list(self) -> list[str]:

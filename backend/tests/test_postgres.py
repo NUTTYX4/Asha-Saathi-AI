@@ -5,51 +5,24 @@ They use a separate disposable database `<name>_test` on the same server, never 
 database. Skipped automatically when DATABASE_URL is not a PostgreSQL URL (e.g. host runs).
 """
 
-import os
 from datetime import date
 
 import pytest
 from alembic import command
-from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.engine import make_url
 
 from app.db.repositories import UnconfirmedRecordError, VisitRepository
 from app.schemas.visit import RecordStatus, VisitRecord, VisitType
+from tests.conftest import alembic_config as _alembic_cfg
+from tests.conftest import disposable_pg_database, requires_postgres
 
-APP_URL = os.environ.get("DATABASE_URL", "")
-pytestmark = pytest.mark.skipif(
-    not APP_URL.startswith("postgresql"), reason="PostgreSQL DATABASE_URL not set (run inside Docker)"
-)
-
-BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+pytestmark = requires_postgres
 
 
 @pytest.fixture(scope="module")
-def test_url(monkeypatch_module):
-    app_url = make_url(APP_URL)
-    test_name = f"{app_url.database}_test"
-    admin = create_engine(app_url.set(database="postgres"), isolation_level="AUTOCOMMIT")
-    with admin.connect() as conn:
-        conn.execute(text(f'DROP DATABASE IF EXISTS "{test_name}" WITH (FORCE)'))
-        conn.execute(text(f'CREATE DATABASE "{test_name}"'))
-    url = app_url.set(database=test_name).render_as_string(hide_password=False)
-    monkeypatch_module.setenv("DATABASE_URL", url)  # migrations/env.py reads it
-    yield url
-    with admin.connect() as conn:
-        conn.execute(text(f'DROP DATABASE IF EXISTS "{test_name}" WITH (FORCE)'))
-    admin.dispose()
-
-
-@pytest.fixture(scope="module")
-def monkeypatch_module():
-    mp = pytest.MonkeyPatch()
-    yield mp
-    mp.undo()
-
-
-def _alembic_cfg() -> Config:
-    return Config(os.path.join(BACKEND_DIR, "alembic.ini"))
+def test_url():
+    with disposable_pg_database("schema") as url:
+        yield url
 
 
 @pytest.fixture(scope="module")

@@ -30,6 +30,11 @@ Voice-first field register for ASHA workers (Gnani PS1). Hackathon prototype; sy
 - Container tests (PostgreSQL included): `docker compose exec api python -m pytest -q`.
 - PostgreSQL schema changes go only through Alembic (`backend/migrations/versions`). Never
   `docker compose down -v`. The Round 1 SQLite file `data/asha_saathi.db` must stay untouched.
+- Demo data is synthetic only (`app/seed/demo_data.py`; pins verified in Cubbon Park open space).
+  Seed with `docker compose exec api python -m scripts.seed_demo`. Never print or log passwords:
+  accounts get passwords only via the interactive `scripts.set_password`.
+- Round 1 endpoints are off by default in V2 (`LEGACY_ROUND1_API_ENABLED`). Every household/person
+  access goes through `app/services/households.py` (territory-scoped; foreign IDs return 404).
 
 ## Rules
 - Do not push to GitHub. A guardrail hook blocks dangerous git commands.

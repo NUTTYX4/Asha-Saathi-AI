@@ -83,6 +83,17 @@ def user_for_token(db: Session, token: str | None) -> User | None:
     return user if user and user.active else None
 
 
+def set_user_password(db: Session, user: User, password: str) -> None:
+    """Set a new password, activate the account and revoke all its existing sessions."""
+    from app.auth.passwords import hash_password  # local import keeps module import order simple
+
+    user.password_hash = hash_password(password)
+    user.active = True
+    for session_row in db.scalars(select(AuthSession).where(AuthSession.user_id == user.id,
+                                                            AuthSession.revoked_at.is_(None))).all():
+        session_row.revoked_at = utcnow()
+
+
 # ------------------------------------------------------------------ authorization
 def active_territory_ids(db: Session, user_id: uuid.UUID) -> frozenset[uuid.UUID]:
     rows = db.scalars(

@@ -10,7 +10,7 @@ Branch: `v2/backend-foundation`. Round 1 baseline: `main` at `aba3f2b` (pushed).
 | 0 | Preflight: git baseline, Docker/WSL, toolchain, secrets present | Done |
 | 1 | Docker Compose + PostgreSQL/PostGIS + SQLAlchemy/Alembic, Round 1 contracts kept | **Done (gates passed)** |
 | 2 | Auth, roles, territories, audit; REST and WebSocket denial tests | **Done (gates passed)** |
-| 3 | Households/people/relationships + 12-house/50-person idempotent seed | Not started |
+| 3 | Households/people/relationships + 12-house/50-person idempotent seed | **Done (gates passed)** |
 | 4 | PostGIS spatial APIs, manual search fallback | Not started |
 | 5 | Household/person-bound Gnani visit flow saved to PostgreSQL | Not started |
 | 6 | Tasks, referrals, guideline versions, terminology, data quality, KPIs | Not started |
@@ -114,4 +114,79 @@ Checkpoint commit: `ad5db92`.
 **Not yet covered:** a forged `person_id` in the WebSocket start message is tested in Phase 5, when
 households and people exist.
 
-**Next:** Phase 3 (households, people, relationships, 12/50 seed).
+Checkpoint commit: `e7caeca`.
+
+## Phase 3: households, people, relationships, synthetic seed (21 Nov 2026)
+
+**Decisions (approved: option A, Cubbon Park)**
+- **Pins:** the 12 pins sit in public open space inside Cubbon Park (OSM way 22895320). They were
+  chosen from OpenStreetMap data and each was then re-checked with `scripts/verify_demo_pins.py`.
+  All are labelled "Synthetic demo pin ... not a real residence" with `location_source = synthetic_demo`.
+- **Schema (migration `0003`):**
+  - `households`: PostGIS `geography(Point,4326)` with a GiST index.
+  - `people`.
+  - `person_relationships`: explicit `mother_of`, `father_of`, `guardian_of`, `spouse_of` edges.
+  - `programme_enrolments`: ANC, PNC, newborn, immunisation and NCD follow-up, recorded **explicitly
+    only**, never inferred.
+  - `household_surveys`: water source and toilet only (non-medical).
+  - `is_demo` renamed to `is_demo_data` on users and territories, so every table uses the same marker.
+- **Ownership:** a household belongs to a territory, and a worker's access comes from their territory
+  assignment. There's no separate household-assignment table.
+- **Deferred:** a household survey create/edit API.
+- **Seed (`python -m scripts.seed_demo`):**
+  - It only adds missing rows, matched by stable keys, and never modifies or deletes existing ones.
+  - UUIDs are deterministic (uuid5).
+  - Dates are relative to the fixed demo date 2026-11-21, overridable with `--as-of`.
+  - New demo accounts are **inactive with no usable password** until the owner runs
+    `python -m scripts.set_password --demo-accounts` (interactive, never echoed or logged).
+  - No password is generated for display or printed anywhere. `create_user` now prompts the same way.
+- **Round 1 endpoints:** **off by default in V2** (PostgreSQL mode) and on only in the Round 1 SQLite
+  mode. `LEGACY_ROUND1_API_ENABLED=true` is an explicit opt-in, and `/api/health` reports
+  `legacy_round1_api`. This closes the Phase 2 open item for the V2 default.
+- **API:**
+  - `GET /api/v2/households` returns map pins: location and member count only, no programmes.
+  - `GET /api/v2/households/{H-###|uuid}`, `.../members`, and `GET /api/v2/people/{P-###|uuid}`.
+  - `POST /api/v2/households/{id}/members` is for a worker in that territory or an admin, needs the
+    CSRF header, and is audited with field names only.
+  - Supervisors are read-only. Another territory's household or person returns 404.
+
+**Dataset (all synthetic):** 2 territories × 6 households, 50 people (4+5+4+3+4+5 / 4+4+5+4+4+4),
+55 family edges, 10 explicit enrolments (ANC 1, PNC 3, newborn 3, immunisation 2, NCD follow-up 1),
+12 surveys, and 4 accounts (`demo_worker_a`, `demo_worker_b`, `demo_supervisor`, `demo_admin`). There
+are no phone numbers or identity numbers. Adults have a recorded age, and children have a date of
+birth relative to the demo date.
+
+**Evidence**
+
+| Check | Result |
+| --- | --- |
+| Pin verification against OSM (`python -m scripts.verify_demo_pins`) | **ALL PINS OK**: each inside Cubbon Park, only park and park-woodland areas (`natural=wood` relation 5525499 / way 372060604), 0 buildings within 30 m, minimum separation 80 m |
+| Live database migration | `Running upgrade 0002 -> 0003`. Backup taken first (`data/backups/asha_saathi_pre_0003.dump`) |
+| Live seed, run 1 | created 2 territories, 4 users, 4 assignments, 12 households, 50 people, 55 relationships, 10 enrolments, 12 surveys. **INVARIANTS: OK** |
+| Live seed, run 2 (idempotency) | `created: nothing`, invariants OK |
+| Container suite | **133 passed** (incl. 29 in `test_households.py`, 10 in `test_postgres.py`) |
+| Host suite (SQLite) | 94 passed, 39 skipped (PostgreSQL-only) |
+| Migrations match the models (including PostGIS geography) | passes |
+| Authorization (REST, PostgreSQL) | Worker A sees only H-001..006 and Worker B only H-007..012. Supervisor and admin see 12. Requests for Territory B by `H-007`, lowercase `h-007`, UUID, `/members`, `P-###` or person UUID return 404, the same as a missing ID. Adding a member in another territory returns 404, a supervisor adding one gets 403, and a missing CSRF header gets 403. Ending an assignment removes access immediately |
+| Integrity | FKs block deleting a household that has members and deleting a territory that has households. CHECKs reject a bad `H-`/`P-` format, unknown relationship type or programme, self-relationship, and a recorded age without a date. Duplicate public IDs are rejected |
+| Live defaults | `/api/visits` 404 (Round 1 off), `/api/v2/households` 401 without login, health `legacy_round1_api: false` |
+| Voice workflow regression (real Gnani, one run, Round 1 endpoint enabled for that run only, then disabled) | disclosure → read-back 4.9 s → correction delta 3.6 s → "ಹೌದು" saved visit #2 **to PostgreSQL** → newborn fever `NB_FEVER` alert 2.9 s; no session errors |
+| Frontend | typecheck and build pass (no frontend changes) |
+| Secret scan of the changes | none (only the existing `[ENCRYPTION_KEY]` placeholder in `.env.example`) |
+
+**Data notes:**
+- The live database also holds synthetic visit #2 (beneficiary 1234) from the voice regression run,
+  plus probe visit #1 from Phase 1.
+- The demo accounts are **inactive** until the owner sets a password.
+
+**Remaining risks:**
+- **OSM accuracy:** the pins depend on OpenStreetMap; unmapped kiosks or paths aren't covered.
+  Re-run `verify_demo_pins` before a public demo.
+- **Overpass reliability:** the public Overpass service returned intermittent 502s; the script retries.
+- **Extra PostGIS extensions:** the PostGIS image's init script also installs topology and tiger
+  extensions in the app database (unused).
+- **Surveys:** there's no survey create/edit API yet.
+- **Voice not yet bound to a household:** the voice session isn't linked to the selected household or
+  person yet (Phase 5).
+
+**Next:** Phase 4 (spatial search APIs, manual-search fallback). Waiting for approval.
