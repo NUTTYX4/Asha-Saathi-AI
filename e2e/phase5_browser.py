@@ -49,6 +49,7 @@ def p5_context(browser: Browser, width: int, height: int, **kw) -> BrowserContex
 
 
 def select_member(page: Page, household_id: str, member_name: str) -> None:
+    p4.show_households(page)
     page.locator(f'ul[aria-label="Households"] button[data-household="{household_id}"]').click()
     expect(page.get_by_test_id("household-preview")).to_be_visible()
     page.get_by_role("button", name="Confirm household").click()
@@ -87,7 +88,7 @@ def p5_s1_worker_a_full_visit(browser: Browser, pw: dict[str, str], r: p4.Report
     r.check(sc, "confirm-save is disabled right after start", confirm_btn.is_disabled())
 
     # Wait for all three scripted utterances (transcript -> weight 3 kg correction -> NB_FEVER alert).
-    worker_lines = page.locator('section[aria-label="Conversation"] li.bg-ink')
+    worker_lines = page.locator('section[aria-label="Conversation"] li[data-who="worker"]')
     expect(worker_lines.first).to_be_visible(timeout=45_000)
     record_card = page.locator('section[aria-label="Visit record"]')
     expect(record_card).to_contain_text("3 kg", timeout=45_000)
@@ -131,7 +132,8 @@ def p5_s1_worker_a_full_visit(browser: Browser, pw: dict[str, str], r: p4.Report
     r.check(sc, "browser persistent storage is empty", bool(storage_empty), storage_empty)
 
     history = page.get_by_test_id("visit-history")
-    expect(history).to_contain_text("Visit History / ಭೇಟಿ ಇತಿಹಾಸ")
+    expect(history).to_contain_text("ಭೇಟಿ ಇತಿಹಾಸ")
+    expect(history).to_contain_text("Visit history")
     history_item = page.get_by_test_id("history-item")
     expect(history_item).to_have_count(1, timeout=15_000)
     expect(history_item).to_contain_text("Baby of Kavya Halli")
@@ -185,6 +187,7 @@ def p5_s2_switch_household_cancels(browser: Browser, pw: dict[str, str], r: p4.R
     expect(page.locator('section[aria-label="Visit record"]')).to_contain_text("2.5 kg", timeout=45_000)
     r.shot(page, "p5_s2_01_kavya_recording_412")
 
+    p4.show_households(page, end_visit=True)  # leaving a live visit asks first, then ends it
     page.locator('ul[aria-label="Households"] button[data-household="H-004"]').click()
     expect(page.get_by_test_id("voice-panel")).to_have_count(0)
     r.check(

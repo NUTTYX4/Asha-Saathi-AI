@@ -16,7 +16,7 @@ const STYLE_URL = ((import.meta.env.VITE_MAP_STYLE_URL as string | undefined) ??
 const PLAIN_STYLE: StyleSpecification = {
   version: 8,
   sources: {},
-  layers: [{ id: "background", type: "background", paint: { "background-color": "#e8eee6" } }],
+  layers: [{ id: "background", type: "background", paint: { "background-color": "#f3eeeb" } }],
 };
 const PARK_CENTRE: [number, number] = [77.5925, 12.9745]; // [lng, lat], Cubbon Park (synthetic demo area)
 const DEMO_ATTRIBUTION = "Synthetic demo pins · not real residences";
@@ -106,7 +106,8 @@ export function HouseholdMap({ pins, highlightedId, onPick }: Props) {
       });
       const marker = new maplibre.Marker({ element: el, anchor: "center" }).setLngLat(toLngLat(pin)).addTo(m);
       // Set after addTo so MapLibre's default marker label does not replace ours.
-      el.setAttribute("aria-label", `Household ${pin.public_id}, ${pin.member_count} members`);
+      // The visible number is part of the name (WCAG 2.5.3).
+      el.setAttribute("aria-label", `${el.textContent}: household ${pin.public_id}, ${pin.member_count} members`);
       el.title = `${pin.public_id} · ${pin.member_count} members`;
       placed.set(pin.id, { marker, el });
     }
@@ -123,14 +124,14 @@ export function HouseholdMap({ pins, highlightedId, onPick }: Props) {
   }, [highlightedId, pins, ready]);
 
   return (
-    <section aria-label="Map of your households" className="flex flex-col gap-1">
+    <section aria-label="Map of your households" className="flex flex-col gap-2">
       <div
         ref={container}
         data-testid="household-map"
-        className={`h-80 w-full overflow-hidden rounded-2xl bg-[#e8eee6] lg:h-[30rem] ${problem === "unsupported" ? "hidden" : ""}`}
+        className={`h-72 w-full overflow-hidden rounded-lg border border-line bg-sunken shadow-sm sm:h-80 lg:h-[28rem] ${problem === "unsupported" ? "hidden" : ""}`}
       />
       {problem && (
-        <p role="status" data-testid="map-problem" className="rounded-xl bg-paper px-3 py-2 text-sm">
+        <p role="status" data-testid="map-problem" className="rounded-md border border-warning-200 bg-warning-50 px-3 py-2 text-sm text-warning-700">
           {problem === "tiles"
             ? "Map background could not load (offline or blocked). The pins and the household list still work."
             : "The map cannot run in this browser. Use the household list below."}

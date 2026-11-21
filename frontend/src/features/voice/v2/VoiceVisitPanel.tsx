@@ -1,12 +1,13 @@
+import { CircleAlert, CircleCheck, Mic, RotateCcw, ShieldCheck, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { HouseholdDetail, PersonOut, VisitType } from "../../../types/contracts";
 import { activeProgrammes } from "../../households/labels";
-import { RecordCard } from "../../visits/components/RecordCard";
-import { StatusPill } from "../components/StatusPill";
-import { TranscriptPanel } from "../components/TranscriptPanel";
+import { Badge, Button, Notice } from "../../ui/primitives";
 import { useV2VoiceSession } from "../hooks/useV2VoiceSession";
 import { V2DangerAlert } from "./V2DangerAlert";
+import { VoiceOrb } from "./VoiceOrb";
+import { Conversation, VisitRecordCard } from "./VoiceRecord";
 import { canConfirm, confirmBlockReason, VISIT_TYPE_OPTIONS } from "./voiceVisit";
 
 interface Props {
@@ -16,10 +17,15 @@ interface Props {
   onSessionLost: () => void;
   onVisitSaved?: () => void;
   onCheckHistory?: () => void;
+  /** Reports whether a voice session is open (the workspace asks before leaving one). */
+  onActiveChange?: (active: boolean) => void;
 }
 
-const button = "min-h-12 rounded-xl px-4 font-semibold disabled:opacity-50";
-
+/**
+ * Person-bound Gnani voice visit. All guards live in the session state (voiceVisit.ts):
+ * the microphone opens only after the AI disclosure, and Confirm and Save is enabled only for the
+ * latest version whose read-back has finished playing. Speaking "ಹೌದು" never saves.
+ */
 export function VoiceVisitPanel({
   household,
   person,
@@ -27,6 +33,7 @@ export function VoiceVisitPanel({
   onSessionLost,
   onVisitSaved,
   onCheckHistory,
+  onActiveChange,
 }: Props) {
   const { state, start, confirm, replayReadback, cancel, reset } = useV2VoiceSession(onSessionLost);
   const [selectedVisitType, setSelectedVisitType] = useState<VisitType | null>(null);
@@ -39,9 +46,21 @@ export function VoiceVisitPanel({
     }
   }, [onVisitSaved, state.phase, state.saved]);
 
+  const live = state.phase === "connecting" || state.phase === "active" || state.phase === "saving";
+  const panelRef = useRef<HTMLElement>(null);
+  // When a visit starts, bring the panel (and its status orb) to the top of the screen.
+  useEffect(() => {
+    if (state.phase === "connecting") panelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [state.phase]);
+  useEffect(() => {
+    onActiveChange?.(live);
+  }, [live, onActiveChange]);
+  useEffect(() => () => onActiveChange?.(false), [onActiveChange]);
+
   const programmes = activeProgrammes(person);
   const confirmReady = canConfirm(state);
   const blockReason = confirmBlockReason(state);
+  const version = state.confirmVersion ?? state.record?.record_version ?? 1;
 
   function handleStart() {
     if (!selectedVisitType) return;
@@ -61,212 +80,206 @@ export function VoiceVisitPanel({
 
   return (
     <section
-      aria-label="Member voice visit"
+      ref={panelRef}
+      aria-labelledby="voice-heading"
       data-testid="voice-panel"
-      className="mt-3 flex flex-col gap-3 rounded-xl border border-rule bg-paper p-3"
+      className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-4 shadow-sm"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-        <p className="font-semibold text-ink break-words">
-          Voice visit for {person.full_name} ({person.public_id}) · Household {household.public_id}
+      <header className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 id="voice-heading" className="flex flex-col text-xl leading-tight font-extrabold">
+            <span lang="kn">ಧ್ವನಿ ಭೇಟಿ</span>
+            <span className="text-base text-fg-2">Voice visit</span>
+          </h3>
+          {state.bound && (
+            <Badge tone="accent" icon={<ShieldCheck size={14} />} data-testid="bound-verified">
+              Verified by server
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm text-fg-2">
+          For <strong className="text-fg">{person.full_name}</strong> ({person.public_id}) in household{" "}
+          {household.public_id}. Nothing is saved until you press Confirm and Save.
         </p>
-        {state.bound && (
-          <span
-            data-testid="bound-verified"
-            className="rounded-full bg-leaf/15 px-2 py-0.5 font-semibold text-leaf"
-          >
-            verified by server
-          </span>
-        )}
-      </div>
+      </header>
 
       {!canRecord ? (
-        <p className="rounded-xl bg-sheet px-3 py-2 text-sm text-ink-soft">
+        <Notice tone="info" icon={<CircleAlert size={20} />} title="Read-only account">
           Only ASHA worker accounts record visits.
-        </p>
+        </Notice>
       ) : (
         <>
           {state.phase === "idle" && (
-            <div className="flex flex-col gap-3">
-              <fieldset className="flex flex-col gap-1.5">
-                <legend className="text-sm font-semibold text-ink">Visit type (required)</legend>
-                <p className="text-xs text-ink-soft">
-                  Recorded programmes: {programmes.length > 0 ? programmes.join(", ") : "None"} (choose the type yourself)
+            <div className="flex flex-col gap-4">
+              <fieldset className="flex flex-col gap-2">
+                <legend className="text-base font-bold">
+                  <span lang="kn">ಭೇಟಿ ಪ್ರಕಾರ</span> Visit type
+                </legend>
+                <p className="text-sm text-fg-2">
+                  Recorded programmes: {programmes.length > 0 ? programmes.join(", ") : "none"}. Choose the type
+                  yourself.
                 </p>
-                <div className="mt-1 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                  {VISIT_TYPE_OPTIONS.map((opt) => (
-                    <label
-                      key={opt.value}
-                      className={`flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2 text-sm ${
-                        selectedVisitType === opt.value
-                          ? "border-ink bg-sheet font-semibold"
-                          : "border-rule bg-sheet/70"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name={`visit-type-${person.id}`}
-                        value={opt.value}
-                        checked={selectedVisitType === opt.value}
-                        onChange={() => setSelectedVisitType(opt.value)}
-                        className="h-4 w-4 accent-rose"
-                      />
-                      <span>
-                        {opt.kn} · <span className="text-ink-soft">{opt.en}</span>
-                      </span>
-                    </label>
-                  ))}
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  {VISIT_TYPE_OPTIONS.map((opt) => {
+                    const checked = selectedVisitType === opt.value;
+                    return (
+                      <label
+                        key={opt.value}
+                        className={`relative flex min-h-16 cursor-pointer flex-col justify-center rounded-md border px-3 py-2 transition-colors duration-150 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-berry-600 ${
+                          checked
+                            ? "border-2 border-berry-600 bg-berry-50"
+                            : "border-control bg-surface hover:border-neutral-700"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name={`visit-type-${person.id}`}
+                          value={opt.value}
+                          checked={checked}
+                          onChange={() => setSelectedVisitType(opt.value)}
+                          className="absolute inset-0 m-0 cursor-pointer appearance-none rounded-md opacity-0"
+                        />
+                        <span lang="kn" className="text-base font-bold leading-snug">
+                          {opt.kn}
+                        </span>
+                        <span className="text-sm font-semibold text-fg-2">{opt.en}</span>
+                        {checked && (
+                          <CircleCheck
+                            size={18}
+                            aria-hidden="true"
+                            className="absolute top-2 right-2 text-berry-600"
+                          />
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
               </fieldset>
-              <button
-                type="button"
-                onClick={handleStart}
-                disabled={!selectedVisitType}
-                className={`${button} w-full bg-rose text-white`}
-              >
+              <Button block icon={<Mic size={20} />} onClick={handleStart} disabled={!selectedVisitType}>
                 Start voice visit
-              </button>
-              <p className="text-xs text-ink-soft">
-                Uses Gnani speech. Nothing is saved until you press Confirm and Save.
+              </Button>
+              <p className="text-center text-xs text-fg-3">
+                Speech goes to Gnani on the server. Audio and transcripts are not stored.
               </p>
             </div>
           )}
 
           {state.phase === "connecting" && (
             <div className="flex flex-col gap-2">
-              <p className="text-sm text-ink-soft">Connecting voice session…</p>
-              <button type="button" onClick={cancel} className={`${button} border border-ink bg-sheet`}>
+              <VoiceOrb state={state} />
+              <Button variant="ghost" icon={<X size={20} />} onClick={cancel}>
                 Cancel visit
-              </button>
+              </Button>
             </div>
           )}
 
           {(state.phase === "active" || state.phase === "saving") && (
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <StatusPill state={state.sessionState} agentSpeaking={state.agentSpeaking} />
-                {state.sttModel && <span className="text-xs text-ink-soft">STT {state.sttModel}</span>}
-              </div>
-
-              {state.disclosureFailed ? (
-                <p role="alert" className="rounded-xl bg-alarm-wash px-3 py-2 text-sm text-alarm">
-                  Disclosure audio failed; the microphone stays off. Cancel and try again.
-                </p>
-              ) : (
-                <p className="rounded-xl bg-sheet px-3 py-2 text-xs font-medium text-ink-soft">
-                  {state.disclosurePlayed
-                    ? "Microphone on"
-                    : "Waiting for the AI disclosure to finish"}
-                </p>
-              )}
-
+            <div className="flex flex-col gap-4">
               <V2DangerAlert alerts={state.alerts} />
+              <VoiceOrb state={state} />
+              {state.sttModel && (
+                <p className="-mt-3 text-center text-xs text-fg-3">Speech model: {state.sttModel}</p>
+              )}
 
               {state.clarification && (
-                <div role="status" className="rounded-xl border border-rose/40 bg-sheet px-3 py-2 text-sm">
-                  <p className="font-semibold text-rose">Clarification needed</p>
-                  <p className="mt-0.5 text-ink">{state.clarification}</p>
-                </div>
+                <Notice tone="brand" icon={<CircleAlert size={20} />} title="ASHA Saathi asks" role="status">
+                  <span className="text-base">{state.clarification}</span>
+                </Notice>
               )}
 
-              {state.record && <RecordCard record={state.record} changedFields={state.changedFields} />}
+              {state.record && <VisitRecordCard record={state.record} changedFields={state.changedFields} />}
+              <Conversation lines={state.lines} />
 
-              <TranscriptPanel lines={state.lines} />
-
-              <div className="flex flex-col gap-2 rounded-2xl border-2 border-leaf/60 bg-sheet p-3">
-                <p className="text-xs leading-snug text-ink-soft">
-                  Check the read-back. Speak to correct a field. Saying &lsquo;ಹೌದು&rsquo; does not save; press the button.
-                </p>
-                <button
-                  type="button"
+              {/* Confirmation dock: stays in thumb reach while the record scrolls. */}
+              <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex flex-col gap-2 rounded-b-xl border-t border-line bg-surface px-4 pt-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] shadow-[0_-8px_16px_rgba(31,26,24,0.06)]">
+                <Button
+                  block
                   data-testid="confirm-save"
                   onClick={confirm}
                   disabled={!confirmReady || state.phase === "saving"}
-                  className={`${button} w-full bg-leaf text-white`}
+                  icon={<CircleCheck size={20} />}
                 >
-                  {state.phase === "saving"
-                    ? "Saving…"
-                    : `Confirm and Save (version ${state.confirmVersion ?? state.record?.record_version ?? 1})`}
-                </button>
+                  {state.phase === "saving" ? "Saving…" : `Confirm and Save (version ${version})`}
+                </Button>
                 {blockReason && state.phase === "active" && (
-                  <p className="text-xs text-ink-soft">{blockReason}</p>
+                  <p className="text-center text-xs font-semibold text-fg-2">{blockReason}</p>
                 )}
-                <div className="flex flex-wrap gap-2">
-                  {(state.readbackAudioFailed || state.confirmVersion !== null) && (
-                    <button
-                      type="button"
-                      onClick={replayReadback}
-                      disabled={state.phase === "saving"}
-                      className={`${button} flex-1 border border-ink bg-paper text-sm`}
-                    >
-                      Replay read-back
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={cancel}
-                    disabled={state.phase === "saving"}
-                    className={`${button} flex-1 border border-ink bg-paper text-sm`}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="md"
+                    icon={<RotateCcw size={18} />}
+                    aria-label="Replay read-back"
+                    onClick={replayReadback}
+                    disabled={state.phase === "saving" || !(state.readbackAudioFailed || state.confirmVersion !== null)}
                   >
+                    Replay
+                  </Button>
+                  <Button variant="ghost" size="md" icon={<X size={18} />} onClick={cancel} disabled={state.phase === "saving"}>
                     Cancel visit
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
           )}
 
           {state.phase === "saved" && state.saved && (
-            <div data-testid="visit-saved" className="flex flex-col gap-2 rounded-xl bg-leaf px-3.5 py-3 text-white">
-              <p className="text-sm font-semibold">
-                Saved ✓ · version {state.saved.record_version} ·{" "}
-                {new Date(state.saved.confirmed_at).toLocaleTimeString("en-IN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}{" "}
-                · visit id {state.saved.visit_id.slice(0, 8)}
-              </p>
-              {state.saved.idempotent_replay && (
-                <p className="text-xs opacity-90">Already saved earlier — showing the same visit receipt.</p>
-              )}
-              <button
-                type="button"
-                onClick={handleReset}
-                className={`${button} mt-1 bg-sheet text-sm text-ink`}
-              >
+            <div
+              data-testid="visit-saved"
+              className="v2-rise flex flex-col gap-3 rounded-lg border border-lime-500 bg-lime-100 p-4 text-on-accent"
+            >
+              <div className="flex items-start gap-3">
+                <span className="grid size-11 shrink-0 place-items-center rounded-full bg-lime-300">
+                  <CircleCheck size={24} aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="text-lg font-extrabold leading-tight">
+                    <span lang="kn">ಉಳಿಸಲಾಗಿದೆ</span> Visit saved
+                  </p>
+                  <p className="text-sm">
+                    Saved for {person.full_name} ({person.public_id}).{" "}
+                    {state.saved.idempotent_replay ? "It was already saved; this is the same visit." : ""}
+                  </p>
+                </div>
+              </div>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                <dt className="font-semibold">Version</dt>
+                <dd>{state.saved.record_version}</dd>
+                <dt className="font-semibold">Saved at</dt>
+                <dd>
+                  {new Date(state.saved.confirmed_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                </dd>
+                <dt className="font-semibold">Visit ID</dt>
+                <dd>{state.saved.visit_id.slice(0, 8)}</dd>
+              </dl>
+              <Button variant="outline" onClick={handleReset} className="bg-surface">
                 Start another visit
-              </button>
+              </Button>
             </div>
           )}
 
           {state.phase === "ended" && (
-            <div className="flex flex-col gap-2 rounded-xl border border-rule bg-sheet px-3 py-2.5 text-sm">
+            <Notice tone="info" icon={<CircleAlert size={20} />} title="Visit ended">
               <p>{state.notice ?? "Session ended. Nothing was saved."}</p>
-              <button
-                type="button"
-                onClick={handleReset}
-                className={`${button} border border-ink bg-paper text-sm`}
-              >
+              <Button variant="outline" size="md" className="mt-2" onClick={handleReset}>
                 Start again
-              </button>
-            </div>
+              </Button>
+            </Notice>
           )}
 
           {state.phase === "save_unknown" && (
-            <div role="alert" className="flex flex-col gap-2 rounded-xl bg-alarm-wash px-3 py-2.5 text-sm text-alarm">
+            <Notice tone="warning" icon={<CircleAlert size={20} />} title="Save status unknown" role="alert">
               <p>{state.notice ?? "Save status unknown. Check this person's visit history before recording again."}</p>
-              <button
-                type="button"
-                onClick={() => onCheckHistory?.()}
-                className={`${button} border border-alarm bg-sheet text-sm text-alarm`}
-              >
+              <Button variant="outline" size="md" className="mt-2" onClick={() => onCheckHistory?.()}>
                 Check history
-              </button>
-            </div>
+              </Button>
+            </Notice>
           )}
 
           {state.error && (
-            <p role="status" className="rounded-xl bg-alarm-wash px-3 py-2 text-xs font-medium text-alarm">
+            <Notice tone="error" icon={<CircleAlert size={20} />} role="status">
               {state.error}
-            </p>
+            </Notice>
           )}
         </>
       )}

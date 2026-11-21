@@ -153,6 +153,18 @@ def wait_markers(page: Page, n: int) -> bool:
         return False
 
 
+def show_households(page: Page, end_visit: bool = False) -> None:
+    """Open the household list. On phones it sits behind the journey's Households step once a
+    household is confirmed; leaving a live voice visit first asks to end it."""
+    lst = page.locator('ul[aria-label="Households"]')
+    if lst.count() and lst.first.is_visible():
+        return
+    page.get_by_role("navigation", name="Visit journey").get_by_role("button", name=re.compile("^Households")).click()
+    if end_visit:
+        page.get_by_role("dialog").get_by_role("button", name="End visit").click()
+    expect(lst).to_be_visible()
+
+
 def breadcrumb(page: Page) -> str:
     return page.get_by_test_id("selection-breadcrumb").inner_text().strip()
 
@@ -270,6 +282,7 @@ def s1_worker_a_flow(browser: Browser, pw: dict[str, str], r: Report) -> None:
     r.check(sc, "no horizontal scroll with members open", no_horizontal_scroll(page))
     r.shot(page, "s1_05_member_selected_360")
 
+    show_households(page)
     page.locator('ul[aria-label="Households"] button[data-household="H-004"]').click()
     expect(page.get_by_test_id("household-preview")).to_be_visible()
     r.check(sc, "choosing another household clears the member",
@@ -408,6 +421,7 @@ def s6_keyboard_and_revocation(browser: Browser, pw: dict[str, str], r: Report) 
     expect(page.get_by_test_id("household-confirmed")).to_be_visible()
     r.check(sc, "keyboard confirmed H-005", breadcrumb(page) == "Selected: H-005 / No member", breadcrumb(page))
 
+    show_households(page)
     page.locator('ul[aria-label="Households"] button[data-household="H-006"]').click()
     e2e_sql("UPDATE territory_assignments SET ends_at = now() WHERE ends_at IS NULL AND user_id = "
             "(SELECT id FROM users WHERE username = 'demo_worker_a')")

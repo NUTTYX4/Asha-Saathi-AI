@@ -1,7 +1,13 @@
+import "@fontsource-variable/mulish/wght.css";
+import "@fontsource-variable/noto-sans-kannada/wght.css";
+
+import { Info, LogOut } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { LoginForm } from "../features/auth/LoginForm";
 import { HouseholdWorkspace } from "../features/households/HouseholdWorkspace";
+import { BrandMark } from "../features/ui/BrandMark";
+import { Button } from "../features/ui/primitives";
 import { ApiError, apiV2, isUnauthorized } from "../lib/apiV2";
 import type { MeOut } from "../types/contracts";
 
@@ -23,6 +29,15 @@ function accessKey(me: MeOut): string {
  * Uses the Phase 2 session cookie; the Round 1 voice screen at / is unchanged.
  */
 export default function V2App() {
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const previous = meta?.getAttribute("content") ?? null;
+    meta?.setAttribute("content", "#ffffff");
+    document.title = "ಆಶಾ ಸಾಥಿ 2.0 · ASHA Saathi";
+    return () => {
+      if (meta && previous) meta.setAttribute("content", previous);
+    };
+  }, []);
   const [auth, setAuth] = useState<Auth>({ status: "checking" });
   const sessionLost = useCallback((notice: string) => setAuth({ status: "signed_out", notice }), []);
 
@@ -82,34 +97,53 @@ export default function V2App() {
   }
 
   return (
-    <div className="mx-auto flex min-h-full max-w-6xl flex-col">
+    <div className="v2 flex min-h-full flex-col">
       <p
         role="note"
         data-testid="synthetic-banner"
-        className="bg-rose px-4 py-1.5 text-center text-xs font-semibold tracking-wide text-white"
+        className="flex items-center justify-center gap-2 border-b border-berry-100 bg-berry-50 px-4 py-1.5 text-center text-xs font-semibold text-berry-700"
       >
-        SYNTHETIC DEMO DATA · fictional households and people · map pins are not real residences
+        <Info size={14} aria-hidden="true" className="shrink-0" />
+        Synthetic demo data: fictional households and people. Map pins are not real residences.
       </p>
-      <header className="flex items-center justify-between gap-3 bg-ink px-4 py-3 text-white">
-        <div>
-          <h1 className="font-display text-xl font-bold leading-none">ಆಶಾ ಸಾಥಿ 2.0</h1>
-          <p className="text-xs opacity-75">ASHA SAATHI · Household map</p>
+      <header className="border-b border-line bg-surface">
+        <div className="mx-auto flex min-h-14 max-w-7xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
+          <BrandMark />
+          {signedIn && (
+            <div className="flex items-center gap-2">
+              <span className="hidden items-center gap-2 sm:flex">
+                <span
+                  aria-hidden="true"
+                  data-initials={signedIn.display_name
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((w) => w[0])
+                    .join("")
+                    .toUpperCase()}
+                  className="v2-avatar grid size-9 place-items-center rounded-full bg-berry-100 text-sm font-extrabold text-berry-700"
+                />
+                <span className="flex flex-col text-right leading-tight">
+                  <span className="text-sm font-bold">{signedIn.display_name}</span>
+                  <span className="text-xs text-fg-2">
+                    {ROLE_LABEL[signedIn.role]}
+                    {signedIn.territories.length > 0 && `, ${signedIn.territories.map((t) => t.code).join(" and ")}`}
+                  </span>
+                </span>
+              </span>
+              <Button variant="ghost" size="md" onClick={logout} icon={<LogOut size={18} />}>
+                Log out
+              </Button>
+            </div>
+          )}
         </div>
-        {signedIn && (
-          <div className="flex items-center gap-2">
-            <span className="hidden text-right text-xs sm:block">
-              {signedIn.display_name}
-              <br />
-              <span className="opacity-75">{signedIn.role}</span>
-            </span>
-            <button type="button" onClick={logout} className="min-h-11 rounded-xl bg-white/15 px-3 text-sm font-semibold">
-              Log out
-            </button>
-          </div>
-        )}
       </header>
-      <main className="flex-1 px-4 pt-3 pb-10">
-        {auth.status === "checking" && <p className="text-sm text-ink-soft">Checking your session…</p>}
+      <main className="flex-1">
+        {auth.status === "checking" && (
+          <p role="status" className="px-4 py-10 text-center text-fg-2">
+            Checking your session…
+          </p>
+        )}
         {auth.status === "signed_out" && (
           <LoginForm notice={auth.notice} onSignedIn={(me) => setAuth({ status: "signed_in", me })} />
         )}
@@ -120,3 +154,9 @@ export default function V2App() {
     </div>
   );
 }
+
+const ROLE_LABEL: Record<MeOut["role"], string> = {
+  worker: "ASHA worker",
+  supervisor: "Supervisor (read-only)",
+  admin: "Administrator",
+};
