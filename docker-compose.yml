@@ -1,0 +1,64 @@
+# ASHA SAATHI AI 2.0: backend runtime (Docker). See docs/v2/operations.md.
+#   docker compose up --build -d      start db -> migrate -> api
+#   docker compose ps                 health
+#   docker compose down               stop (data kept in the pgdata volume; never use -v on real data)
+# Secrets (GNANI_API_KEY, POSTGRES_PASSWORD) come from the ignored repository-root .env.
+
+name: asha-saathi
+
+services:
+  db:
+    image: postgis/postgis:17-3.6
+    environment:
+      POSTGRES_DB: asha_saathi
+      POSTGRES_USER: asha
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asha -d asha_saathi"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [dbnet]
+    # No published ports: the database is reachable only from the api/migrate containers.
+    restart: unless-stopped
+
+  migrate:
+    build: ./backend
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://asha:${POSTGRES_PASSWORD}@db:5432/asha_saathi
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [dbnet]
+    restart: "no"
+
+  api:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://asha:${POSTGRES_PASSWORD}@db:5432/asha_saathi
+    ports:
+      # Localhost only: the Vite HTTPS dev server proxies /api and /ws here. Not exposed to the LAN.
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    networks: [dbnet, egress]
+    restart: unless-stopped
+
+networks:
+  dbnet:
+    internal: true   # no outbound internet for the database network
+  egress: {}         # api needs outbound HTTPS/WSS to Gnani
+
+volumes:
+  pgdata:

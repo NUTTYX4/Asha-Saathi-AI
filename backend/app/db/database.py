@@ -1,29 +1,45 @@
-"""SQLite connection and schema. Only confirmed structured fields are stored:
-no audio and no transcripts."""
+"""Database engines.
 
-import sqlite3
-from pathlib import Path
+- PostgreSQL/PostGIS (V2, Docker): schema is managed only by Alembic; never `create_all`.
+- SQLite (Round 1 local workflow and unit tests): tables are created if missing. An existing
+  Round 1 file is used as-is; nothing is altered or deleted.
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS visits (
-    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-    beneficiary_id        TEXT    NOT NULL,
-    visit_type            TEXT    NOT NULL,
-    weight_kg             REAL,
-    vaccinations_due      TEXT,             -- JSON array or NULL (not mentioned)
-    next_visit_date       TEXT,             -- ISO date or NULL
-    danger_signs          TEXT    NOT NULL, -- JSON array of rule IDs
-    requires_phc_referral INTEGER NOT NULL,
-    language              TEXT,
-    record_version        INTEGER NOT NULL,
-    created_at            TEXT    NOT NULL DEFAULT (datetime('now'))
-);
+Only confirmed structured fields are stored: no audio and no transcripts.
 """
 
+from pathlib import Path
 
-def connect(db_file: Path) -> sqlite3.Connection:
+from sqlalchemy import Engine, create_engine, event, text
+
+from app.db.models import Base
+
+
+def connect(db_file: Path) -> Engine:
+    """SQLite engine for the Round 1 file or a test file."""
     db_file.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_file, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA)
-    return conn
+    engine = create_engine(f"sqlite:///{db_file.as_posix()}", connect_args={"check_same_thread": False})
+
+    @event.listens_for(engine, "connect")
+    def _sqlite_pragmas(dbapi_conn, _record):  # pragma: no cover - trivial
+        dbapi_conn.execute("PRAGMA foreign_keys=ON")
+
+    Base.metadata.create_all(engine)
+    return engine
+
+
+def connect_postgres(url: str) -> Engine:
+    """PostgreSQL engine. Assumes `alembic upgrade head` has already run."""
+    return create_engine(url, pool_pre_ping=True)
+
+
+def backend_name(engine: Engine) -> str:
+    return engine.dialect.name
+
+
+def ping(engine: Engine) -> bool:
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        return False

@@ -24,6 +24,13 @@ Voice-first field register for ASHA workers (Gnani PS1). Hackathon prototype; sy
   In Windows PowerShell 5.1, never pipe uvicorn through `2>&1 | Tee-Object`: the server exits. Use the
   `cmd /c "... > ..\data\backend.log 2>&1"` form instead.
 
+## V2 (branch `v2/backend-foundation`)
+- Brief: `ASHA_SAATHI_AI_V2_ENGINEERING_MASTER_PLAN.md` §15. Progress and evidence: `docs/v2/PROGRESS.md`.
+- The backend runs in Docker (`docker compose up --build -d`); runbook in `docs/v2/operations.md`.
+- Container tests (PostgreSQL included): `docker compose exec api python -m pytest -q`.
+- PostgreSQL schema changes go only through Alembic (`backend/migrations/versions`). Never
+  `docker compose down -v`. The Round 1 SQLite file `data/asha_saathi.db` must stay untouched.
+
 ## Rules
 - Do not push to GitHub. A guardrail hook blocks dangerous git commands.
 - Report features as mocked, real-API-tested, or end-to-end verified, with evidence.

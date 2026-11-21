@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     app_env: str = "development"
     cors_origins: str = "http://localhost:5173,https://localhost:5173"
     database_path: str = "./data/asha_saathi.db"
+    # V2: when set (Docker Compose sets it), PostgreSQL/PostGIS is used and its schema is
+    # managed only by Alembic. When unset, the Round 1 SQLite file above is used.
+    # SecretStr: the URL contains the database password.
+    database_url: SecretStr | None = None
 
     # Gnani API Platform. SecretStr keeps the key out of reprs and logs.
     gnani_api_key: SecretStr | None = None
