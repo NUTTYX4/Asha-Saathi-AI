@@ -112,3 +112,47 @@ docker compose exec -T db pg_restore -U asha -d asha_restore /tmp/asha_saathi.du
 | A bad data change | Restore the latest backup into a new database and compare before switching |
 
 The Round 1 SQLite file `data/asha_saathi.db` is never opened by the Docker stack.
+
+## One-command local start (launcher)
+
+`py run.py` checks tools and `.env`, then:
+
+- leaves healthy containers alone and starts stopped ones in place;
+- applies pending migrations through the `migrate` service, except while the demo runs;
+- starts or reuses the Vite dev server;
+- streams redacted logs.
+
+Use `py run.py --status` to check health without changing anything. Use `py run.py --stop` to run `compose stop`; it never uses `down` or `-v`. The full guide is [`../LOCAL_DEVELOPMENT.md`](../LOCAL_DEVELOPMENT.md).
+
+## Browser suites
+
+All browser suites use the disposable `asha_saathi_e2e` database, `api-e2e` and mock speech. Run each one from the repository root:
+
+```powershell
+uv run --no-project --with playwright==1.64.1 python -X utf8 -I e2e/phase4_browser.py --channel msedge   # map, selection, isolation
+uv run --no-project --with playwright==1.64.1 python -X utf8 -I e2e/phase5_browser.py --channel msedge   # voice visit (mock Gnani)
+uv run --no-project --with playwright==1.64.1 python -X utf8 -I e2e/phase6_design.py --channel msedge    # responsive + axe
+uv run --no-project --with playwright==1.64.1 python -X utf8 -I e2e/phase7_admin.py --channel msedge     # admin dashboard
+uv run --no-project --with playwright==1.64.1 python -X utf8 -I e2e/tunnel_proxy.py --channel msedge     # voice suite through the Caddy demo proxy
+```
+
+- **`-X utf8`:** keeps Kannada failure messages printable on Windows consoles. `-I` ignores `PYTHONIOENCODING`.
+- **Running the backend suite from the current source without touching the live `api` container:** build the e2e image, then run the tests in a one-off container:
+
+  ```powershell
+  docker compose --profile e2e build api-e2e
+  docker compose --profile e2e run --rm -T --no-deps -e VOICE_PROVIDER_MODE=gnani -e GNANI_API_KEY= -e GEMINI_API_KEY= api-e2e python -m pytest -q
+  ```
+
+## Admin dashboard
+
+Admins land on the dashboard at `/v2`. The routes are listed in [`ARCHITECTURE.md`](ARCHITECTURE.md), and the QA evidence is in `docs/qa/ADMIN_DASHBOARD_QA.md`.
+
+- Assignment changes (create, move, end) are audited (`assignment.create`, `assignment.reassign`, `assignment.end`).
+- Ended assignments are never deleted.
+
+## Demo hosting
+
+- **Demo proxy and tunnel:** `deploy/tunnel/README.md`.
+- **Permanent link and re-pointing:** `deploy/vercel-redirect/README.md`.
+- **Judging-day runbook:** `docs/qa/DEMO_READINESS.md`.

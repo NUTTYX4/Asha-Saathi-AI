@@ -7,44 +7,50 @@
 - **Problem statement:** Gnani PS1. Healthcare: voice field register for ASHA workers
 - **Language:** Kannada with English medical terms (code-mixed)
 
-> Hackathon prototype. Synthetic data only. Not a medical device. It does not diagnose, treat or
-> recommend doses.
+> Hackathon prototype. Synthetic data only. Not a medical device and not production-ready. It does not
+> diagnose, treat or recommend medication. The danger-sign rules are **demo-only** and need clinical
+> sign-off before any real use.
 
----
+## Status
 
-## What it does
+| App | Path | State |
+| --- | --- | --- |
+| **ASHA Saathi AI 2.0** | `/v2` | The current app. Docker (FastAPI + PostgreSQL/PostGIS), accounts and roles, territories, household map, person-linked voice visits, visit history, admin dashboard |
+| Round 1 | `/` | The original single-screen voice register (SQLite, no login). It is kept unchanged, and its API is **off** in V2 unless `LEGACY_ROUND1_API_ENABLED=true` |
 
-An ASHA worker records a home visit (ANC, PNC, newborn or immunisation) by speaking instead of typing.
+## What V2 does
 
-1. **AI disclosure.** The assistant says it is an AI helper. This prompt cannot be interrupted.
-2. **Speech to text.** The browser streams microphone audio to the backend, which forwards it to
-   **Gnani Prisma v3.0** (realtime WebSocket STT).
-3. **Field extraction.** Deterministic Kannada–English rules extract the beneficiary ID, visit type,
-   weight, vaccinations due and next visit date. Anything not said stays empty: values are never guessed.
-4. **Danger signs.** Fixed rules from a cited WHO guideline raise an immediate "refer to PHC now" alert.
-   Rules are scoped to the patient (mother or newborn). If it is unclear who the sign belongs to, the
-   alert repeats the worker's own words instead of naming a patient.
-5. **Spoken read-back.** **Gnani Timbre v3.0** reads back the captured fields. After a correction, only
-   the changed field is re-read.
-6. **Correction and confirmation.** The worker corrects by voice ("ಇಲ್ಲ, ತೂಕ ಅರವತ್ತೆರಡು ಕಿಲೋ"). The record is
-   saved only after an explicit "ಹೌದು" (yes) that matches the version just read back.
-7. **Follow-up list.** Saved visits appear in a follow-up list, with referrals listed first.
+**ASHA worker** (signed in, scoped to their assigned territory):
 
-## Architecture
+1. Opens the household map or list, picks a household, and **confirms** it.
+2. Picks a member, **confirms** the person, and chooses the visit type explicitly: routine, ANC, PNC, newborn or immunisation.
+3. Starts the voice visit. The agent says "ನಮಸ್ಕಾರ. ನಾನು AI ಸಹಾಯಕ, ಮನುಷ್ಯರಲ್ಲ. ಭೇಟಿಯ ವಿವರ ಹೇಳಿ." The microphone only listens after this disclosure has played.
+4. Speaks the visit in Kannada and English. **Gnani Prisma v3.0** transcribes it, and deterministic extraction fills a versioned draft. Missing values stay empty. Demo-only danger rules are checked for the right person.
+5. Listens to the full read-back from **Gnani Timbre v3.0**. A spoken correction creates a new version and needs a new read-back.
+6. Presses **Confirm and Save**, which saves exactly once. Saying "ಹೌದು" never saves. The visit appears in the person's **Visit history**.
+
+**Supervisor:** reads every territory it is assigned to and never records.
+
+**Admin:**
+
+- the **admin dashboard**: Overview, ASHA workers with a detail view, Visit activity, Territories (registered vs visited households), Assignments (assign, move with confirmation, end; all audited) and Audit history;
+- the same field view as workers, across all territories.
+
+All authorization is enforced on the server. Other territories' records return 404.
+
+## Architecture (V2)
 
 ```text
-Phone browser (React + TypeScript + Vite + Tailwind, HTTPS)
-  │  mic PCM 16 kHz ─►  /ws/session  ◄─ events + agent audio (WAV)
+Browser /v2 (React 18 + TS + Vite + Tailwind 4) ── same origin: /api/* (session cookie + anti-CSRF header), /ws/v2/session
   ▼
-FastAPI backend (127.0.0.1:8000, reached only through the Vite HTTPS proxy)
-  ├─ Gnani Prisma v3.0  (wss, realtime STT)
-  ├─ Deterministic extraction + danger-sign rules (rules.json, cited)
-  ├─ Gnani Timbre v3.0  (REST TTS)
-  └─ SQLite: confirmed visits only
+FastAPI (Docker "api", 127.0.0.1:8000) ── Gnani Prisma v3.0 STT / Timbre v3.0 TTS (backend only)
+  ▼                                    └─ Gemini extraction assist: optional, OFF by default
+PostgreSQL 17 + PostGIS (Docker "db", internal network only)
 ```
 
-- The Gnani API key stays on the backend. The browser never receives it.
-- Neither audio nor transcripts are stored. The database holds confirmed structured fields only.
+- The API keys stay on the backend.
+- No audio, transcript or draft is stored; only explicitly confirmed visits are.
+- Details: [docs/v2/ARCHITECTURE.md](docs/v2/ARCHITECTURE.md). UI: [docs/v2/DESIGN.md](docs/v2/DESIGN.md). Operations: [docs/v2/operations.md](docs/v2/operations.md).
 
 ## Gnani services used
 
@@ -59,10 +65,30 @@ No telephony, no voice cloning and no hosted voice-agent product: the orchestrat
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | React 18, TypeScript, Vite 6 (HTTPS dev server), Tailwind CSS 4, AudioWorklet mic capture |
-| Backend | Python 3.11, FastAPI, Pydantic v2, websockets, httpx, SQLite |
+| Frontend | React 18, TypeScript, Vite 6, Tailwind CSS 4, MapLibre (OpenFreeMap), lucide-react, Mulish + Noto Sans Kannada |
+| Backend | Python 3.11, FastAPI, Pydantic v2, SQLAlchemy, Alembic, PostgreSQL 17 + PostGIS 3.6 (Docker) |
 | Voice | Gnani Prisma v3.0 (STT), Gnani Timbre v3.0 (TTS) |
-| Logic | Deterministic extraction, Kannada number parsing and rule-based danger signs (no LLM) |
+| Logic | Deterministic extraction and Kannada number parsing; rule-based, demo-only danger signs; optional validated Gemini assist (off) |
+
+## Tests
+
+| Suite | Command | Last result (see [docs/qa/FINAL_QA_REPORT.md](docs/qa/FINAL_QA_REPORT.md)) |
+| --- | --- | --- |
+| Backend (PostgreSQL, disposable DBs) | see [docs/v2/operations.md](docs/v2/operations.md) | in the QA report |
+| Frontend | `cd frontend; npm run typecheck; npx vitest run` | in the QA report |
+| Browser e2e (mock speech) | `e2e/phase4_browser.py` … `e2e/phase7_admin.py` | in the QA report |
+| Launcher | `py -m unittest discover -s tests/launcher` | in the QA report |
+
+All voice tests use **simulated speech**, so they do not measure real Gnani recognition quality on a phone. Live Gemini calls are disabled in tests.
+
+## Known limitations (V2)
+
+- Danger rules are demo-only, pending clinical review. The Kannada prompts are pending native-speaker review.
+- Live speech quality on real devices is not yet tested.
+- The hackathon demo runs from a laptop through a Cloudflare quick tunnel ([docs/qa/DEMO_READINESS.md](docs/qa/DEMO_READINESS.md)). Merging code does not update it.
+- All visitors share one sign-in rate limit behind the demo proxy.
+- The Territories tab lists households but has no map.
+- An independent database QA set needs its own isolated server.
 
 ---
 
@@ -86,9 +112,23 @@ The launcher never restarts or rebuilds healthy containers and never resets the 
 
 Details, logs, troubleshooting and safe shutdown: [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md). Docker operations: [docs/v2/operations.md](docs/v2/operations.md).
 
+### V2 repository map
+
+| Path | Purpose |
+| --- | --- |
+| `backend/app/api/v2/` | Auth, territories, households, visits, admin management, admin dashboard, voice WebSocket |
+| `backend/app/services/` | Territory-scoped access (`households.py`), voice session (`voice_v2.py`), extraction, prompts |
+| `backend/migrations/` | Alembic migrations (head `0005`) |
+| `backend/tests/` | Backend tests, including disposable-PostgreSQL integration tests |
+| `frontend/src/features/` | Households/map, voice visit, visit history, admin dashboard, UI kit |
+| `e2e/` | Playwright browser suites (Phase 4–7, tunnel proxy) |
+| `deploy/tunnel/`, `deploy/vercel-redirect/` | Demo proxy and tunnel; permanent demo link |
+| `run.py`, `tests/launcher/` | One-command local launcher and its tests |
+| `docs/v2/`, `docs/qa/` | Architecture, design, operations; QA reports and demo runbook |
+
 The rest of this section describes the original Round 1 app (SQLite, run by hand).
 
-## Setup (Windows PowerShell)
+## Round 1 setup (original app, Windows PowerShell)
 
 Prerequisites: Python 3.11, Node.js 20+, a Gnani API Platform key from
 [app.gnani.ai/voice](https://app.gnani.ai/voice).
@@ -159,7 +199,7 @@ Optional live check, which spends a few Gnani credits: from `backend\`, run
 
 The backend listens on `127.0.0.1` only. The phone reaches it through the Vite proxy, never directly.
 
-## Repository layout
+## Round 1 repository layout
 
 | Path | Purpose |
 | --- | --- |
@@ -182,7 +222,7 @@ To regenerate the contracts after changing the schemas: in `backend\`, run
 
 ---
 
-## Verification status (21 Nov 2026)
+## Round 1 verification status (21 Nov 2026)
 
 | Level | What was checked | Result |
 | --- | --- | --- |
@@ -193,7 +233,7 @@ To regenerate the contracts after changing the schemas: in `backend\`, run
 | Physical Android phone | Connectivity, mic, playback; ANC note → read-back → confirm → save → follow-up; newborn fever → alert and PHC referral | Pass |
 | Physical phone: spoken correction | Verified in an earlier phone run; not repeated in the latest run | Pass (earlier run) |
 
-## Known limitations
+## Round 1 known limitations
 
 - **Extraction is rule-based.** Unusual phrasing can be missed; missing required fields are asked for,
   never guessed. No LLM is used.

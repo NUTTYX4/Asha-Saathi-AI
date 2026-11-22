@@ -69,8 +69,20 @@ FastAPI's own `/docs` and `/openapi.json` exist on the API port only (`127.0.0.1
 | GET | `/api/v2/visits/by-client-key/{id}` | own visits only | 401 | 200 (owner) | 404 | 404 | 404 | foreign key 404 | none | M, V, C | PASS |
 | WS | `/ws/v2/session` | worker in scope, cookie, same Origin | refused | binds | NOT_AVAILABLE | read-only | — | foreign Origin 403; no cookie 403; foreign person NOT_AVAILABLE; superseded 4409; revoked mid-session | one confirmed row only after an explicit confirm | V, C, E5, tunnel check | PASS |
 
+## How the coverage was counted (105, not 140)
+
+The branch has **28 HTTP routes: 20 GET and 8 POST**.
+
+- **All 20 GET routes, as all 5 roles.** `test_endpoint_role_matrix` checks every GET route as signed out, worker A, worker B, supervisor and admin: **21 request rows × 5 roles = 105 requests, 105/105 as expected**. There is one extra row because `/territories/{id}` is checked both in scope and with an unknown ID.
+- **The 8 POST routes, by targeted tests.** They are not in the matrix, because a write needs a valid body, side effects and cleanup:
+  - **login and logout:** CSRF required; a wrong password gives 401 with a generic message; access after logout gives 401.
+  - **`/admin/users`, `/admin/territories`, `/admin/assignments`, `/admin/assignments/{id}/end`:** 4 parametrized cases × 4 checks (signed out 401, worker A 403, supervisor 403, admin without CSRF 403) = 16 checks. Admin validation is checked separately (bad role 422, missing field 422, unknown IDs 404).
+  - **`/admin/assignments/{id}/reassign`:** signed out 401; worker A, worker B and supervisor 403; admin without CSRF 403; extra field 422; same territory 409; unknown territory or assignment 404; already ended 409; success 201 with an audit row.
+  - **`POST /households/{key}/members`:** `test_households.py` covers an own-territory worker 201, a foreign territory 404, a supervisor 403 and a future date of birth 422.
+- **Every one of the 28 routes is covered for access control**, but not every route as every role. The full product of 28 × 5 = 140 was **not** run, and earlier wording that implied it has been corrected.
+
 **Results:**
 
 - Branch backend suite: **360 passed, 6 skipped**, run in a disposable container built from the branch source. The 6 skipped tests need host-only services, and the cause is unchanged from before.
 - Admin browser suite: **74/74** before the dialog-height regression check was added (now 75 checks, see `ADMIN_DASHBOARD_QA.md`).
-- Matrix: **105/105** requests returned the expected status.
+- Matrix: **105/105** GET requests returned the expected status; the POST routes are covered as listed above.

@@ -15,9 +15,9 @@ Test passwords were random one-time values: generated per run, passed to the boo
 | Capability | worker (own territory) | worker (other territory) | supervisor | admin | Enforced where | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | Sign in / sign out / `me` | yes | yes | yes | yes | server (session cookie: httpOnly, Secure, SameSite=Strict) | `test_auth.py`, `test_admin_dashboard.py` |
-| List households and map pins | own 6 | — | all 12 | all 12 | server `visible_territory_ids` | matrix, `test_households.py`, Phase 4 |
+| List households and map pins | own 6 | — | all 12 | all 12 | server `visible_territory_ids`; per-user read budget (429) | matrix, `test_households.py`, Phase 4 |
 | Read a household, its members or a person | yes | **404** | yes | yes | server; 404 hides existence | matrix |
-| Add a household member | yes | **404** | **403** | per role rules | server | `test_households.py` |
+| Add a household member (`POST /households/{key}/members`, CSRF) | yes | **404** | **403** (read-only) | yes, any territory | server `require_roles("worker","admin")` plus scope | `test_households.py` |
 | Read a person's confirmed visits | yes | **404** | yes | yes | server | matrix, `test_voice_v2.py` |
 | Lost-ACK receipt lookup | own visits only | 404 | 404 | 404 | server (`worker_id` = caller) | matrix |
 | Start a voice visit (`/ws/v2/session`) | yes, bound to one person | NOT_AVAILABLE | read-only (no Start) | — | server `authorize_start` and periodic revalidation | `test_voice_v2.py`, Phase 5 S3/S5 |
@@ -25,6 +25,16 @@ Test passwords were random one-time values: generated per run, passed to the boo
 | Admin dashboard views (7 GET routes) | **403** | **403** | **403** | yes | server `require_roles("admin")` | matrix, Phase 7 A4 |
 | Create users, territories or assignments; end or reassign an assignment | **403** | **403** | **403** | yes, plus the anti-CSRF header | server | `test_admin_writes_require_admin_and_csrf`, Phase 7 A3/A4 |
 | Change own role or territory | **impossible**: no such route; `POST /auth/me` returns 405 | — | — | — | server | `test_admin_write_validation_and_role_escalation` |
+
+## How the role checks were counted
+
+- **GET routes, as every role.** `test_endpoint_role_matrix` sends 21 request rows × 5 roles (signed out, worker A, worker B, supervisor, admin) = **105 requests**. The 21 rows cover **20 distinct GET routes**: `/territories/{id}` appears twice, once in scope and once with an unknown ID. That is all 7 admin dashboard GETs and 13 non-admin GETs.
+- **The 8 POST routes, by targeted tests.** These are not in the matrix:
+  - `/auth/login` and `/auth/logout`: CSRF and wrong-password tests.
+  - `/admin/users`, `/admin/territories`, `/admin/assignments` and `/admin/assignments/{id}/end`: 4 parametrized cases. Each checks signed out (401), worker A (403), supervisor (403) and admin without CSRF (403), for 16 checks in total. Separate cases check admin validation.
+  - `/admin/assignments/{id}/reassign`: signed out (401), worker A, worker B and supervisor (403), admin without CSRF (403), plus 5 validation and conflict cases and the success case.
+  - `POST /households/{key}/members`: `test_households.py`, covering an own-territory worker, a foreign territory (404) and a supervisor (403).
+- **Not tested as all 5 roles.** Not every one of the 28 routes was tested as all 5 roles. 28 × 5 = 140 would be the full product, and this report does not claim it.
 
 ## Checks that passed
 
