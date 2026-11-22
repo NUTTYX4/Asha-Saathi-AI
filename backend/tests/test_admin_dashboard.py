@@ -251,11 +251,11 @@ def test_reassign_is_transactional_audited_and_keeps_visits(client, engine):
 
 def test_workers_cannot_reassign_themselves(client, engine):
     i = ids(engine)
-    for role in ("demo_worker_b", "demo_supervisor"):
+    for role, expected in (("anonymous", 401), ("demo_worker_a", 403), ("demo_worker_b", 403), ("demo_supervisor", 403)):
         as_role(client, role)
         r = client.post(f"/api/v2/admin/assignments/{i['assignment_b']}/reassign",
                         json={"territory_id": str(i["t"]["DEMO-A"])}, headers=H)
-        assert r.status_code == 403
+        assert r.status_code == expected, (role, r.status_code)
     with Session(engine) as db:
         assert db.get(TerritoryAssignment, i["assignment_b"]).ends_at is None
 
