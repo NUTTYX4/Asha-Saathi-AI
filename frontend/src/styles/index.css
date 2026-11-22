@@ -218,7 +218,6 @@ body {
 
 .v2 {
   color-scheme: light;
-  min-height: 100%;
   background: var(--color-canvas);
   color: var(--color-fg);
   font-family: var(--font-v2);
@@ -228,6 +227,10 @@ body {
   font-variant-numeric: tabular-nums;
   scroll-padding-top: 8rem;
   scroll-padding-bottom: 10rem;
+}
+/* The app root fills the page; dialogs that reuse .v2 for its tokens must size to their content. */
+.v2:not(dialog) {
+  min-height: 100%;
 }
 
 /* Kannada script needs taller line boxes so vowel signs and conjuncts never clip. */
