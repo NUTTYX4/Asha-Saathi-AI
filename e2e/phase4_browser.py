@@ -126,13 +126,21 @@ def watch(page: Page, report: Report, scenario: str) -> list[str]:
 
 
 # ------------------------------------------------------------------ page helpers
-def login(page: Page, username: str, password: str) -> None:
+def login(page: Page, username: str, password: str, field_view: bool = True) -> None:
+    """Sign in. Admins land on the admin dashboard (Phase 7); field_view=True switches them to the
+    household map so the map/selection scenarios run unchanged."""
     page.goto(f"{WEB}/v2")
     page.get_by_label("Username").fill(username)
     page.get_by_label("Password").fill(password)
     page.get_by_role("button", name="Sign in").click()
     # The count appears only once the pins have loaded ("Your households" while loading).
-    expect(page.get_by_role("heading", name=re.compile(r"Your households \(\d+\)"))).to_be_visible()
+    households = page.get_by_role("heading", name=re.compile(r"Your households \(\d+\)"))
+    dashboard = page.get_by_test_id("admin-dashboard")
+    expect(households.or_(dashboard)).to_be_visible()
+    if dashboard.is_visible() and field_view:
+        page.get_by_role("navigation", name="Admin views").get_by_role("button", name="Field view").click()
+    if field_view:
+        expect(households).to_be_visible()
     expect(page.get_by_test_id("synthetic-banner")).to_be_visible()
 
 

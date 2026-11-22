@@ -1,9 +1,10 @@
 import "@fontsource-variable/mulish/wght.css";
 import "@fontsource-variable/noto-sans-kannada/wght.css";
 
-import { Info, LogOut } from "lucide-react";
+import { Info, LayoutDashboard, LogOut, Map as MapIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { AdminDashboard } from "../features/admin/AdminDashboard";
 import { LoginForm } from "../features/auth/LoginForm";
 import { HouseholdWorkspace } from "../features/households/HouseholdWorkspace";
 import { BrandMark } from "../features/ui/BrandMark";
@@ -39,6 +40,7 @@ export default function V2App() {
     };
   }, []);
   const [auth, setAuth] = useState<Auth>({ status: "checking" });
+  const [adminView, setAdminView] = useState<"dashboard" | "field">("dashboard");
   const sessionLost = useCallback((notice: string) => setAuth({ status: "signed_out", notice }), []);
 
   useEffect(() => {
@@ -147,8 +149,33 @@ export default function V2App() {
         {auth.status === "signed_out" && (
           <LoginForm notice={auth.notice} onSignedIn={(me) => setAuth({ status: "signed_in", me })} />
         )}
-        {auth.status === "signed_in" && (
-          <HouseholdWorkspace key={accessKey(auth.me)} me={auth.me} onSessionLost={sessionLost} />
+        {auth.status === "signed_in" && auth.me.role === "admin" && (
+          <nav aria-label="Admin views" className="mx-auto flex max-w-7xl gap-1 px-4 pt-4 sm:px-6">
+            {(
+              [
+                ["dashboard", "Dashboard", <LayoutDashboard key="d" size={18} />],
+                ["field", "Field view", <MapIcon key="f" size={18} />],
+              ] as const
+            ).map(([id, label, icon]) => (
+              <Button
+                key={id}
+                variant={adminView === id ? "primary" : "ghost"}
+                size="md"
+                aria-pressed={adminView === id}
+                icon={icon}
+                onClick={() => setAdminView(id)}
+              >
+                {label}
+              </Button>
+            ))}
+          </nav>
+        )}
+        {auth.status === "signed_in" && auth.me.role === "admin" && adminView === "dashboard" ? (
+          <AdminDashboard key={accessKey(auth.me)} onSessionLost={sessionLost} />
+        ) : (
+          auth.status === "signed_in" && (
+            <HouseholdWorkspace key={accessKey(auth.me)} me={auth.me} onSessionLost={sessionLost} />
+          )
         )}
       </main>
     </div>

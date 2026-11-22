@@ -1,4 +1,14 @@
 import type {
+  AdminAssignment,
+  AdminOverview,
+  AdminTerritoryCoverage,
+  AdminUser,
+  AdminVisitPage,
+  AdminWorker,
+  AssignmentCreate,
+  AuditOut,
+  ReassignRequest,
+  TerritoryOut,
   AshaSaathiContracts,
   HouseholdDetail,
   HouseholdPin,
@@ -133,7 +143,46 @@ export const apiV2 = {
   },
   visitReceipt: (clientVisitId: string) =>
     getJson<V2VisitOut>(`/api/v2/visits/by-client-key/${seg(clientVisitId)}`),
+
+  /** Admin dashboard (admin role only; the server enforces it on every call). */
+  admin: {
+    overview: (f: AdminFilter) => getJson<AdminOverview>(`/api/v2/admin/overview?${filterParams(f)}`),
+    workers: (f: AdminFilter) => getJson<AdminWorker[]>(`/api/v2/admin/workers?${filterParams(f)}`),
+    visits: (f: AdminFilter, opts: { visitType?: string; sort?: "newest" | "oldest"; limit?: number; offset?: number }) => {
+      const params = filterParams(f);
+      if (opts.visitType) params.set("visit_type", opts.visitType);
+      params.set("sort", opts.sort ?? "newest");
+      params.set("limit", String(opts.limit ?? 25));
+      params.set("offset", String(opts.offset ?? 0));
+      return getJson<AdminVisitPage>(`/api/v2/admin/visits?${params}`);
+    },
+    coverage: (f: AdminFilter) => getJson<AdminTerritoryCoverage[]>(`/api/v2/admin/coverage?${filterParams(f)}`),
+    users: () => getJson<AdminUser[]>("/api/v2/admin/users"),
+    territories: () => getJson<TerritoryOut[]>("/api/v2/territories"),
+    assignments: () => getJson<AdminAssignment[]>("/api/v2/admin/assignments"),
+    audit: (limit = 100) => getJson<AuditOut[]>(`/api/v2/admin/audit?limit=${limit}`),
+    assign: async (body: AssignmentCreate) => postJson<unknown>("/api/v2/admin/assignments", body),
+    endAssignment: async (id: string) => postJson<unknown>(`/api/v2/admin/assignments/${seg(id)}/end`),
+    reassign: async (id: string, body: ReassignRequest) =>
+      (await postJson<AdminAssignment>(`/api/v2/admin/assignments/${seg(id)}/reassign`, body)) as AdminAssignment,
+  },
 };
+
+export interface AdminFilter {
+  dateFrom?: string;
+  dateTo?: string;
+  territoryId?: string;
+  workerId?: string;
+}
+
+function filterParams(f: AdminFilter): URLSearchParams {
+  const params = new URLSearchParams();
+  if (f.dateFrom) params.set("date_from", f.dateFrom);
+  if (f.dateTo) params.set("date_to", f.dateTo);
+  if (f.territoryId) params.set("territory_id", f.territoryId);
+  if (f.workerId) params.set("worker_id", f.workerId);
+  return params;
+}
 
 export function v2SessionSocketUrl(): string {
   const scheme = window.location.protocol === "https:" ? "wss" : "ws";
