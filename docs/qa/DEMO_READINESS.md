@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | Worker flow: households, member, voice visit, history | yes | yes |
 | Admin dashboard (Overview, workers, visits, territories, assignments, audit) | **no** | yes |
-| Short V2 greeting ("ನಮಸ್ಕಾರ. ನಾನು AI ಸಹಾಯಕ, ಮನುಷ್ಯರಲ್ಲ. ಭೇಟಿಯ ವಿವರ ಹೇಳಿ.") | **no** (the live API still speaks the older introduction) | yes |
+| Short greeting, V2 and Round 1 ("ನಮಸ್ಕಾರ, ನಾನು AI ಸಹಾಯಕ."), once per session | **no** (the live API still speaks the older introduction) | yes |
 | Confirmation dialogs sized to their content | **no** | yes |
 | Database schema | `0005` | `0005` (this release adds no migration) |
 

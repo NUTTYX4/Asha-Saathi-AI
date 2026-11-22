@@ -327,4 +327,37 @@ describe("voiceVisitReducer", () => {
     s = voiceVisitReducer(s, { type: "clip_ended", purpose: "readback", recordVersion: 2 });
     expect(canConfirm(s)).toBe(true);
   });
+
+  it("shows the short disclosure greeting once per session and opens listening after playback", () => {
+    let s = activeState();
+    const disclosureEvent = {
+      seq: 2,
+      turn_id: 0,
+      type: "agent.audio" as const,
+      purpose: "disclosure" as const,
+      text: "ನಮಸ್ಕಾರ, ನಾನು AI ಸಹಾಯಕ.",
+      audio_b64: "UklGRg==",
+      mime_type: "audio/wav",
+      record_version: null,
+    };
+    s = voiceVisitReducer(s, { type: "server", event: disclosureEvent });
+    expect(s.disclosureReceived).toBe(true);
+    expect(s.disclosurePlayed).toBe(false);
+    expect(s.lines).toHaveLength(1);
+    expect(s.lines[0]).toMatchObject({ who: "agent", text: "ನಮಸ್ಕಾರ, ನಾನು AI ಸಹಾಯಕ." });
+
+    // A duplicate disclosure event within the same session must not add a second bubble.
+    s = voiceVisitReducer(s, { type: "server", event: { ...disclosureEvent, seq: 3 } });
+    expect(s.lines).toHaveLength(1);
+
+    // Completing disclosure playback enables immediate listening.
+    s = voiceVisitReducer(s, { type: "clip_ended", purpose: "disclosure", recordVersion: null });
+    expect(s.disclosurePlayed).toBe(true);
+
+    // A brand new voice session resets the greeting state cleanly.
+    const nextSession = voiceVisitReducer(s, { type: "start", clientVisitId: "visit-2" });
+    expect(nextSession.disclosureReceived).toBe(false);
+    expect(nextSession.disclosurePlayed).toBe(false);
+    expect(nextSession.lines).toHaveLength(0);
+  });
 });

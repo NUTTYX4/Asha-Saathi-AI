@@ -133,6 +133,7 @@ class VoiceSession:
         self._locked_visit_type = locked_visit_type if locked_visit_type not in (None, VisitType.UNKNOWN) else None
         self._danger_scope = danger_scope
         self._disclosure_done = not gate_until_disclosure
+        self._greeting_sent = False
         self._extraction_provider: ExtractionProvider = extraction_provider or DeterministicExtractionProvider()
         self.playback_ack_version: int | None = None
         if locked_beneficiary_id is not None:
@@ -213,7 +214,9 @@ class VoiceSession:
     async def start(self) -> None:
         await self.emit(SessionStarted(session_id=self.session_id, stt_model=self._stt_model))
         await self.emit(RecordUpdated(record=self.record))
-        await self.speak(prompts.DISCLOSURE, "disclosure")
+        if not self._greeting_sent:
+            self._greeting_sent = True
+            await self.speak(prompts.DISCLOSURE, "disclosure")
         await self.set_state(SessionState.LISTENING)
 
     def on_playback_completed(self, purpose: str, record_version: int | None) -> None:

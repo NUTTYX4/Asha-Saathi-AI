@@ -23,7 +23,7 @@ This describes the UI that ships at `/v2`. The source design system is [`design/
 
 ## Voice copy
 
-- **V2 opening:** "ನಮಸ್ಕಾರ. ನಾನು AI ಸಹಾಯಕ, ಮನುಷ್ಯರಲ್ಲ. ಭೇಟಿಯ ವಿವರ ಹೇಳಿ." It is a greeting, then the AI disclosure, then the prompt. The microphone stays gated until this clip has played.
+- **Opening (V2 and Round 1):** "ನಮಸ್ಕಾರ, ನಾನು AI ಸಹಾಯಕ." ("Namaskara, I am an AI assistant.") One clip holds both the greeting and the AI disclosure. It is spoken once per session; duplicate disclosure events are ignored. The microphone sends nothing until the clip has played, and nothing while a disclosure or danger-alert clip is playing.
 - **Prompts:** fixed Kannada prompts in `backend/app/services/prompts.py`.
 - **Review:** all Kannada copy is pending native-speaker review.
 

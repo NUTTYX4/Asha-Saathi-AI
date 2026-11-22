@@ -7,17 +7,14 @@ Numbers are written as words because Timbre expects spoken-form numbers.
 from app.schemas.visit import VisitRecord, VisitType
 from app.services.numbers import digits_to_kannada, to_kannada_words
 
-DISCLOSURE = (
-    "ನಮಸ್ಕಾರ! ನಾನು ಆಶಾ ಸಾಥಿ, ಒಂದು AI ಸಹಾಯಕ. ನಾನು ಮನುಷ್ಯರಲ್ಲ. "
-    "ಮನೆ ಭೇಟಿಯ ವಿವರಗಳನ್ನು ಹೇಳಿ."
-)
+SHORT_GREETING_DISCLOSURE = "ನಮಸ್ಕಾರ, ನಾನು AI ಸಹಾಯಕ."
+DISCLOSURE = SHORT_GREETING_DISCLOSURE
 
-# V2 opening (Phase 7): a short greeting, then the required AI disclosure ("I am an AI assistant,
-# not a human"), then straight to the visit ("Tell me the visit details."). No product name, one
-# greeting only. The microphone stays gated until this clip has played. PENDING native-speaker review.
-V2_GREETING = "ನಮಸ್ಕಾರ."
-V2_AI_DISCLOSURE = "ನಾನು AI ಸಹಾಯಕ, ಮನುಷ್ಯರಲ್ಲ."
-V2_DISCLOSURE = f"{V2_GREETING} {V2_AI_DISCLOSURE} ಭೇಟಿಯ ವಿವರ ಹೇಳಿ."
+# V2 opening: one short greeting + concise AI disclosure ("Namaskara, I am an AI assistant.").
+# No long tutorial or repeated welcome; the microphone stays gated until this clip finishes.
+V2_GREETING = "ನಮಸ್ಕಾರ"
+V2_AI_DISCLOSURE = "ನಾನು AI ಸಹಾಯಕ."
+V2_DISCLOSURE = SHORT_GREETING_DISCLOSURE
 
 ASK_FIELD = {
     "beneficiary_id": "ಫಲಾನುಭವಿ ಐಡಿ ಹೇಳಿ.",

@@ -31,6 +31,7 @@ export function useV2VoiceSession(onSessionLost?: () => void) {
   const stopCaptureRef = useRef<StopCapture | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const expectedRef = useRef<{ householdPublicId: string; personPublicId: string } | null>(null);
+  const protectedAudioPlayingRef = useRef(false);
 
   const dispatch = useCallback((action: VoiceVisitAction) => {
     stateRef.current = voiceVisitReducer(stateRef.current, action);
@@ -56,6 +57,7 @@ export function useV2VoiceSession(onSessionLost?: () => void) {
       closeTimerRef.current = null;
     }
     await stopMic();
+    protectedAudioPlayingRef.current = false;
     const player = playerRef.current;
     playerRef.current = null;
     if (player) await player.close().catch(() => undefined);
@@ -74,12 +76,16 @@ export function useV2VoiceSession(onSessionLost?: () => void) {
         householdPublicId: params.householdPublicId,
         personPublicId: params.personPublicId,
       };
+      protectedAudioPlayingRef.current = false;
       dispatch({ type: "start", clientVisitId });
 
       // Created directly inside the tap handler so mobile autoplay policies allow playback.
       playerRef.current = new AgentAudioPlayer(
         (speaking) => dispatch({ type: "speaking", speaking }),
         (purpose, recordVersion) => {
+          if (purpose === "disclosure" || purpose === "alert") {
+            protectedAudioPlayingRef.current = false;
+          }
           dispatch({ type: "clip_ended", purpose, recordVersion });
           if (purpose === "disclosure") {
             send({ type: "playback.completed", purpose: "disclosure", record_version: null });
@@ -112,11 +118,19 @@ export function useV2VoiceSession(onSessionLost?: () => void) {
         } catch {
           return;
         }
+        if (event.type === "agent.audio" && event.purpose === "disclosure" && stateRef.current.disclosureReceived) {
+          return;
+        }
         dispatch({ type: "server", event });
 
         if (event.type === "session.started") {
           void startCapture((frame) => {
-            if (wsRef.current === ws && ws.readyState === WebSocket.OPEN) {
+            if (
+              wsRef.current === ws &&
+              ws.readyState === WebSocket.OPEN &&
+              stateRef.current.disclosurePlayed &&
+              !protectedAudioPlayingRef.current
+            ) {
               ws.send(frame);
             }
           })
@@ -147,9 +161,17 @@ export function useV2VoiceSession(onSessionLost?: () => void) {
           }
         } else if (event.type === "agent.audio") {
           if (event.audio_b64) {
+            if (event.purpose === "disclosure" || event.purpose === "alert") {
+              protectedAudioPlayingRef.current = true;
+            }
             playerRef.current
               ?.enqueue(event.audio_b64, event.turn_id, event.purpose, event.record_version ?? null)
-              .catch(() => dispatch({ type: "clip_failed", purpose: event.purpose }));
+              .catch(() => {
+                if (event.purpose === "disclosure" || event.purpose === "alert") {
+                  protectedAudioPlayingRef.current = false;
+                }
+                dispatch({ type: "clip_failed", purpose: event.purpose });
+              });
           }
         } else if (event.type === "agent.audio.cancel") {
           playerRef.current?.cancel(event.turn_id);

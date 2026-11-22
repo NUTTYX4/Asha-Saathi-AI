@@ -41,6 +41,7 @@ export interface VoiceVisitState {
   confirmVersion: number | null;
   playedReadbackVersion: number | null;
   readbackAudioFailed: boolean;
+  disclosureReceived: boolean;
   disclosurePlayed: boolean;
   disclosureFailed: boolean;
   speechInProgress: boolean;
@@ -79,6 +80,7 @@ export const initialVoiceVisitState: VoiceVisitState = {
   confirmVersion: null,
   playedReadbackVersion: null,
   readbackAudioFailed: false,
+  disclosureReceived: false,
   disclosurePlayed: false,
   disclosureFailed: false,
   speechInProgress: false,
@@ -138,6 +140,9 @@ function handleServerEvent(state: VoiceVisitState, event: ServerEvent): VoiceVis
     case "transcript.final":
       return { ...state, speechInProgress: true, ...appendLine(state, "worker", event.text) };
     case "agent.audio": {
+      if (event.purpose === "disclosure" && state.disclosureReceived) {
+        return state;
+      }
       const linePatch = appendLine(state, "agent", event.text);
       const missingAudio = !event.audio_b64;
       const readbackAudioFailed =
@@ -149,6 +154,7 @@ function handleServerEvent(state: VoiceVisitState, event: ServerEvent): VoiceVis
         ...linePatch,
         readbackAudioFailed,
         disclosureFailed,
+        disclosureReceived: event.purpose === "disclosure" ? true : state.disclosureReceived,
       };
     }
     case "agent.audio.cancel":

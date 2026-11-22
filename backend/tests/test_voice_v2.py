@@ -697,12 +697,19 @@ async def test_v2_opening_is_one_short_greeting_with_the_ai_disclosure(engine):
     speech = [e for e in h.of("agent.audio") if e.purpose == "disclosure"]
     assert len(speech) == 1, "exactly one opening clip"
     text = speech[0].text
-    assert text.startswith("ನಮಸ್ಕಾರ")
+    assert text == "ನಮಸ್ಕಾರ, ನಾನು AI ಸಹಾಯಕ."
+    assert prompts.DISCLOSURE == "ನಮಸ್ಕಾರ, ನಾನು AI ಸಹಾಯಕ."
+    assert prompts.V2_DISCLOSURE == "ನಮಸ್ಕಾರ, ನಾನು AI ಸಹಾಯಕ."
+    assert "AI ಸಹಾಯಕ" in text, "the AI disclosure is still spoken"
     assert text.count("ನಮಸ್ಕಾರ") == 1, "greeting is not repeated"
-    assert prompts.V2_AI_DISCLOSURE in text, "the AI disclosure is still spoken"
     assert "ಆಶಾ ಸಾಥಿ" not in text, "no product name in the opening"
-    assert len(text) < len(prompts.DISCLOSURE)
-    assert prompts.DISCLOSURE.startswith("ನಮಸ್ಕಾರ! ನಾನು ಆಶಾ ಸಾಥಿ"), "Round 1 disclosure is unchanged"
+    assert "ಮನುಷ್ಯರಲ್ಲ" not in text
+    assert "ಭೇಟಿಯ ವಿವರ" not in text
+
+    # Re-calling start() on the same session must not emit a duplicate greeting.
+    await h.s.start()
+    await asyncio.sleep(0.02)
+    assert len([e for e in h.of("agent.audio") if e.purpose == "disclosure"]) == 1
 
 
 async def test_v2_short_greeting_keeps_the_disclosure_gate_and_full_flow(engine):

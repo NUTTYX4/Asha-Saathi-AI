@@ -145,7 +145,9 @@ class V2VisitSession(VoiceSession):
             client_visit_id=self.binding.client_visit_id,
         ))
         await self.emit(RecordUpdated(record=self.record))
-        await self.speak(prompts.V2_DISCLOSURE, "disclosure")
+        if not self._greeting_sent:
+            self._greeting_sent = True
+            await self.speak(prompts.V2_DISCLOSURE, "disclosure")
         await self.set_state(SessionState.LISTENING)
 
     @property

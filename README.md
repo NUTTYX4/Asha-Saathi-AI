@@ -24,7 +24,7 @@
 
 1. Opens the household map or list, picks a household, and **confirms** it.
 2. Picks a member, **confirms** the person, and chooses the visit type explicitly: routine, ANC, PNC, newborn or immunisation.
-3. Starts the voice visit. The agent says "ನಮಸ್ಕಾರ. ನಾನು AI ಸಹಾಯಕ, ಮನುಷ್ಯರಲ್ಲ. ಭೇಟಿಯ ವಿವರ ಹೇಳಿ." The microphone only listens after this disclosure has played.
+3. Starts the voice visit. The agent says one short greeting with the AI disclosure, "ನಮಸ್ಕಾರ, ನಾನು AI ಸಹಾಯಕ." ("Namaskara, I am an AI assistant."), once per session. The microphone only listens after it has played.
 4. Speaks the visit in Kannada and English. **Gnani Prisma v3.0** transcribes it, and deterministic extraction fills a versioned draft. Missing values stay empty. Demo-only danger rules are checked for the right person.
 5. Listens to the full read-back from **Gnani Timbre v3.0**. A spoken correction creates a new version and needs a new read-back.
 6. Presses **Confirm and Save**, which saves exactly once. Saying "ಹೌದು" never saves. The visit appears in the person's **Visit history**.

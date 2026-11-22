@@ -47,6 +47,8 @@ export function useVoiceSession() {
   const stopCaptureRef = useRef<StopCapture | null>(null);
   const playerRef = useRef<AgentAudioPlayer | null>(null);
   const lineId = useRef(0);
+  const disclosureSeenRef = useRef(false);
+  const protectedAudioPlayingRef = useRef(false);
 
   const patch = useCallback((update: Partial<VoiceSessionView> | ((v: VoiceSessionView) => Partial<VoiceSessionView>)) => {
     setView((v) => ({ ...v, ...(typeof update === "function" ? update(v) : update) }));
@@ -66,6 +68,8 @@ export function useVoiceSession() {
   const teardown = useCallback(async () => {
     const stop = stopCaptureRef.current;
     stopCaptureRef.current = null;
+    protectedAudioPlayingRef.current = false;
+    disclosureSeenRef.current = false;
     if (stop) await stop().catch(() => undefined);
     await playerRef.current?.close().catch(() => undefined);
     playerRef.current = null;
@@ -82,7 +86,7 @@ export function useVoiceSession() {
           try {
             stopCaptureRef.current = await startCapture((frame) => {
               const ws = wsRef.current;
-              if (ws?.readyState === WebSocket.OPEN) ws.send(frame);
+              if (ws?.readyState === WebSocket.OPEN && !protectedAudioPlayingRef.current) ws.send(frame);
             });
           } catch (err) {
             patch({ error: `ಮೈಕ್ ಸಿಗಲಿಲ್ಲ / Microphone unavailable: ${(err as Error).message}` });
@@ -111,11 +115,21 @@ export function useVoiceSession() {
           patch((v) => ({ alerts: [...v.alerts, event] }));
           break;
         case "agent.audio":
+          if (event.purpose === "disclosure") {
+            if (disclosureSeenRef.current) break;
+            disclosureSeenRef.current = true;
+          }
           addLine("agent", event.text);
           if (event.audio_b64) {
-            playerRef.current?.enqueue(event.audio_b64, event.turn_id, event.purpose).catch((err) =>
-              patch({ error: `Audio playback failed: ${(err as Error).message}` }),
-            );
+            if (event.purpose === "disclosure" || event.purpose === "alert") {
+              protectedAudioPlayingRef.current = true;
+            }
+            playerRef.current?.enqueue(event.audio_b64, event.turn_id, event.purpose).catch((err) => {
+              if (event.purpose === "disclosure" || event.purpose === "alert") {
+                protectedAudioPlayingRef.current = false;
+              }
+              patch({ error: `Audio playback failed: ${(err as Error).message}` });
+            });
           }
           break;
         case "agent.audio.cancel":
@@ -137,9 +151,18 @@ export function useVoiceSession() {
 
   const start = useCallback(() => {
     if (wsRef.current) return;
+    disclosureSeenRef.current = false;
+    protectedAudioPlayingRef.current = false;
     setView({ ...INITIAL, connection: "connecting" });
     // Created inside the tap handler so mobile autoplay rules allow playback.
-    playerRef.current = new AgentAudioPlayer((speaking) => patch({ agentSpeaking: speaking }));
+    playerRef.current = new AgentAudioPlayer(
+      (speaking) => patch({ agentSpeaking: speaking }),
+      (purpose) => {
+        if (purpose === "disclosure" || purpose === "alert") {
+          protectedAudioPlayingRef.current = false;
+        }
+      },
+    );
     const ws = new WebSocket(sessionSocketUrl());
     ws.binaryType = "arraybuffer";
     wsRef.current = ws;

@@ -51,7 +51,7 @@ The Round 1 routes (`/api/visits`, `/api/followups`, `/ws/session`) are not regi
 
 1. **Choose the person.** The worker confirms a household, then a member, then picks the visit type explicitly. Nothing is inferred from enrolment.
 2. **Bind the session.** The browser opens `/ws/v2/session` and sends `v2.session.start`. The server authorizes it and binds it to `(worker, household, person, territory, client_visit_id)`. The binding cannot change.
-3. **Disclose first.** The opening is spoken ("ನಮಸ್ಕಾರ. ನಾನು AI ಸಹಾಯಕ, ಮನುಷ್ಯರಲ್ಲ. ಭೇಟಿಯ ವಿವರ ಹೇಳಿ."). Audio is ignored until the browser reports that the disclosure finished playing.
+3. **Disclose first.** One short greeting with the AI disclosure is spoken, once per session ("ನಮಸ್ಕಾರ, ನಾನು AI ಸಹಾಯಕ.", "Namaskara, I am an AI assistant."). Audio is ignored until the browser reports that the disclosure finished playing.
 4. **Speech in.** Speech goes through Prisma to a transcript, then deterministic extraction (the optional Gemini assist is validated, and can never set identity or alerts). The result is a versioned draft. The demo-only danger rules are checked against the right population (mother or newborn).
 5. **Read back.** Timbre reads the full record back. A correction bumps the version and invalidates the earlier read-back acknowledgement.
 6. **Explicit save.** **Confirm and Save** for the latest acknowledged version writes exactly one `v2_visits` row. One transaction holds `FOR SHARE` locks, enforces unique `(worker_id, client_visit_id)` and revalidates access. Saying "ಹೌದು" never saves.

@@ -80,11 +80,16 @@
 
 ## 6. Voice, Gemini and clinical scope
 
-- **V2 greeting:** "ನಮಸ್ಕಾರ. ನಾನು AI ಸಹಾಯಕ, ಮನುಷ್ಯರಲ್ಲ. ಭೇಟಿಯ ವಿವರ ಹೇಳಿ."
-  - The AI disclosure comes first, and microphone input is ignored until the disclosure clip has played.
-  - The Round 1 greeting is unchanged.
+- **Greeting, V2 and Round 1** (owner decision, greeting-fix commit): "ನಮಸ್ಕಾರ, ನಾನು AI ಸಹಾಯಕ." ("Namaskara, I am an AI assistant.").
+  - It replaces the earlier interim V2 text "ನಮಸ್ಕಾರ. ನಾನು AI ಸಹಾಯಕ, ಮನುಷ್ಯರಲ್ಲ. ಭೇಟಿಯ ವಿವರ ಹೇಳಿ." and the original Round 1 introduction.
+  - The AI disclosure is part of this single clip.
+  - **The server speaks it once per session** (`_greeting_sent` guard).
+  - **Both browser hooks ignore a duplicate disclosure event.**
+  - **The microphone stays quiet until it should listen.** No microphone frames are sent until the disclosure has played (V2), nor while a disclosure or danger-alert clip is playing (V2 and Round 1). The server also ignores audio until the disclosure playback ack (V2).
   - Native-speaker review is **pending**.
-  - Tests: one opening clip; the greeting is not repeated; the disclosure is present; no product name; the gate still works.
+  - Tests:
+    - backend: exact text; one clip; a repeated `start()` adds no second greeting; speech before the ack is ignored;
+    - Vitest: one bubble for a duplicate event; listening opens after playback; a new session resets.
 - **Simulated speech only.** Every automated voice test used simulated speech. **This does not establish real Gnani recognition quality on a phone.**
 - **Gemini:** live calls disabled (`EXTRACTION_PROVIDER_MODE=deterministic`, `GEMINI_EXTRACTION_ENABLED=false`). All Gemini scenarios used a mocked SDK. The configured model ID `gemini-3.8-flash` was **not** validated against the live provider.
 - **Clinical scope:** the danger rules are **demo-only** and need clinical sign-off. The app gives no diagnosis, treatment or medication advice.
