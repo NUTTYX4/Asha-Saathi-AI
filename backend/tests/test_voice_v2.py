@@ -687,3 +687,30 @@ async def test_clarification_loop_and_conversational_replies(engine):
     await h3.say("Normal visit. Weight 52 kg, ಮುಂದಿನ ಭೇಟಿ ನವೆಂಬರ್ ಇಪ್ಪತ್ತೆಂಟು.")
     assert h3.s.record.visit_type == VisitType.ROUTINE
     assert h3.s.readback_version is not None
+
+
+# ------------------------------------------------------------------ Phase 7: short V2 greeting
+async def test_v2_opening_is_one_short_greeting_with_the_ai_disclosure(engine):
+    h = V2Harness(engine)
+    await h.s.start()
+    await asyncio.sleep(0.02)
+    speech = [e for e in h.of("agent.audio") if e.purpose == "disclosure"]
+    assert len(speech) == 1, "exactly one opening clip"
+    text = speech[0].text
+    assert text.startswith("ನಮಸ್ಕಾರ")
+    assert text.count("ನಮಸ್ಕಾರ") == 1, "greeting is not repeated"
+    assert prompts.V2_AI_DISCLOSURE in text, "the AI disclosure is still spoken"
+    assert "ಆಶಾ ಸಾಥಿ" not in text, "no product name in the opening"
+    assert len(text) < len(prompts.DISCLOSURE)
+    assert prompts.DISCLOSURE.startswith("ನಮಸ್ಕಾರ! ನಾನು ಆಶಾ ಸಾಥಿ"), "Round 1 disclosure is unchanged"
+
+
+async def test_v2_short_greeting_keeps_the_disclosure_gate_and_full_flow(engine):
+    h = V2Harness(engine)
+    await h.s.start()
+    await h.say(NOTE)  # before the disclosure finished playing: ignored
+    assert h.s.record.record_version == 0 and not h.of("transcript.final")
+    h.s.on_playback_completed("disclosure", None)
+    await h.say(NOTE)
+    assert h.s.record.weight_kg == 52
+    assert len([e for e in h.of("agent.audio") if e.purpose == "disclosure"]) == 1, "no second greeting later"

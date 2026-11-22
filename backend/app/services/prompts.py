@@ -12,6 +12,13 @@ DISCLOSURE = (
     "ಮನೆ ಭೇಟಿಯ ವಿವರಗಳನ್ನು ಹೇಳಿ."
 )
 
+# V2 opening (Phase 7): a short greeting, then the required AI disclosure ("I am an AI assistant,
+# not a human"), then straight to the visit ("Tell me the visit details."). No product name, one
+# greeting only. The microphone stays gated until this clip has played. PENDING native-speaker review.
+V2_GREETING = "ನಮಸ್ಕಾರ."
+V2_AI_DISCLOSURE = "ನಾನು AI ಸಹಾಯಕ, ಮನುಷ್ಯರಲ್ಲ."
+V2_DISCLOSURE = f"{V2_GREETING} {V2_AI_DISCLOSURE} ಭೇಟಿಯ ವಿವರ ಹೇಳಿ."
+
 ASK_FIELD = {
     "beneficiary_id": "ಫಲಾನುಭವಿ ಐಡಿ ಹೇಳಿ.",
     "visit_type": "ಇದು ಸಾಮಾನ್ಯ ಭೇಟಿಯೇ, ಅಥವಾ ANC, PNC, ನವಜಾತ ಶಿಶು, ಅಥವಾ ಲಸಿಕೆ ಭೇಟಿಯೇ?",
