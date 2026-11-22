@@ -49,6 +49,15 @@ export interface AshaSaathiContracts {
   v2_person: PersonOut;
   v2_client_event: V2SessionStart | RecordConfirm | SessionStop | PlaybackCompleted | ReadbackRequest | SessionCancel;
   v2_visit: V2VisitOut;
+  v2_admin_overview: AdminOverview;
+  v2_admin_worker: AdminWorker;
+  v2_admin_visit_page: AdminVisitPage;
+  v2_admin_territory_coverage: AdminTerritoryCoverage;
+  v2_admin_user: AdminUser;
+  v2_admin_assignment: AdminAssignment;
+  v2_admin_reassign_request: ReassignRequest;
+  v2_admin_assignment_create: AssignmentCreate;
+  v2_audit_event: AuditOut;
   [k: string]: unknown;
 }
 /**
@@ -432,5 +441,145 @@ export interface V2VisitOut {
   record_version: number;
   confirmed_at: string;
   is_demo_data: boolean;
+  [k: string]: unknown;
+}
+export interface AdminOverview {
+  filters: AdminFilters;
+  active_workers: number;
+  territories_total: number;
+  territories_with_worker: number;
+  households_registered: number;
+  households_without_assigned_worker: number;
+  beneficiaries_registered: number;
+  visits_confirmed: number;
+  households_visited: number;
+  beneficiaries_visited: number;
+  visits_by_type: {
+    [k: string]: number;
+  };
+  followups_upcoming: number;
+  followups_date_passed: number;
+  [k: string]: unknown;
+}
+export interface AdminFilters {
+  date_from: string | null;
+  date_to: string | null;
+  territory_id: string | null;
+  worker_id: string | null;
+  [k: string]: unknown;
+}
+export interface AdminWorker {
+  id: string;
+  username: string;
+  display_name: string;
+  active: boolean;
+  territories: TerritoryRef[];
+  households_assigned: number;
+  visits_confirmed: number;
+  households_visited: number;
+  beneficiaries_visited: number;
+  last_visit_at: string | null;
+  followups_upcoming: number;
+  [k: string]: unknown;
+}
+export interface TerritoryRef {
+  id: string;
+  code: string;
+  name: string;
+  [k: string]: unknown;
+}
+export interface AdminVisitPage {
+  total: number;
+  limit: number;
+  offset: number;
+  items: AdminVisit[];
+  [k: string]: unknown;
+}
+/**
+ * Minimum necessary: public IDs, no names, no transcripts, no clinical free text.
+ */
+export interface AdminVisit {
+  id: string;
+  confirmed_at: string;
+  worker_id: string;
+  worker_username: string;
+  worker_display_name: string;
+  territory_code: string;
+  household_public_id: string;
+  person_public_id: string;
+  visit_type: string;
+  status?: string;
+  record_version: number;
+  next_visit_date: string | null;
+  danger_sign_count: number;
+  requires_phc_referral: boolean;
+  [k: string]: unknown;
+}
+export interface AdminTerritoryCoverage {
+  id: string;
+  code: string;
+  name: string;
+  active: boolean;
+  workers: string[];
+  households_registered: number;
+  households_visited: number;
+  households_not_visited: number;
+  last_visit_at: string | null;
+  households: CoverageHousehold[];
+  [k: string]: unknown;
+}
+export interface CoverageHousehold {
+  id: string;
+  public_id: string;
+  latitude: number;
+  longitude: number;
+  visited_in_range: boolean;
+  last_visit_at: string | null;
+  [k: string]: unknown;
+}
+export interface AdminUser {
+  id: string;
+  username: string;
+  display_name: string;
+  role: "worker" | "supervisor" | "admin";
+  active: boolean;
+  [k: string]: unknown;
+}
+export interface AdminAssignment {
+  id: string;
+  user_id: string;
+  username: string;
+  display_name: string;
+  role: "worker" | "supervisor" | "admin";
+  territory_id: string;
+  territory_code: string;
+  territory_name: string;
+  starts_at: string;
+  ends_at: string | null;
+  created_by_username: string | null;
+  [k: string]: unknown;
+}
+export interface ReassignRequest {
+  /**
+   * Territory the worker moves to; the current assignment ends
+   */
+  territory_id: string;
+}
+export interface AssignmentCreate {
+  user_id: string;
+  territory_id: string;
+  [k: string]: unknown;
+}
+export interface AuditOut {
+  id: number;
+  occurred_at: string;
+  actor_user_id: string | null;
+  action: string;
+  resource_kind: string;
+  resource_id: string | null;
+  request_id: string | null;
+  details: {
+    [k: string]: unknown;
+  } | null;
   [k: string]: unknown;
 }

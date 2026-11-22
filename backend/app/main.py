@@ -14,6 +14,7 @@ from sqlalchemy import Engine
 from app.api import websocket
 from app.api.routes import health, visits
 from app.api.v2 import admin as v2_admin
+from app.api.v2 import admin_dashboard as v2_admin_dashboard
 from app.api.v2 import auth as v2_auth
 from app.api.v2 import households as v2_households
 from app.api.v2 import territories as v2_territories
@@ -78,6 +79,7 @@ def create_app(engine: Engine | None = None) -> FastAPI:
     app.include_router(v2_auth.router, prefix="/api/v2")
     app.include_router(v2_territories.router, prefix="/api/v2")
     app.include_router(v2_admin.router, prefix="/api/v2")
+    app.include_router(v2_admin_dashboard.router, prefix="/api/v2")
     app.include_router(v2_households.router, prefix="/api/v2")
     app.include_router(v2_visits.router, prefix="/api/v2")
     app.include_router(v2_ws.router)

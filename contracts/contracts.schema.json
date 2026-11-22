@@ -1,5 +1,464 @@
 {
   "$defs": {
+    "AdminAssignment": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "user_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "worker",
+            "supervisor",
+            "admin"
+          ],
+          "type": "string"
+        },
+        "territory_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "territory_code": {
+          "type": "string"
+        },
+        "territory_name": {
+          "type": "string"
+        },
+        "starts_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "ends_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_by_username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "user_id",
+        "username",
+        "display_name",
+        "role",
+        "territory_id",
+        "territory_code",
+        "territory_name",
+        "starts_at",
+        "ends_at",
+        "created_by_username"
+      ],
+      "title": "AdminAssignment",
+      "type": "object"
+    },
+    "AdminFilters": {
+      "properties": {
+        "date_from": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "date_to": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "territory_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "worker_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "date_from",
+        "date_to",
+        "territory_id",
+        "worker_id"
+      ],
+      "title": "AdminFilters",
+      "type": "object"
+    },
+    "AdminOverview": {
+      "properties": {
+        "filters": {
+          "$ref": "#/$defs/AdminFilters"
+        },
+        "active_workers": {
+          "type": "integer"
+        },
+        "territories_total": {
+          "type": "integer"
+        },
+        "territories_with_worker": {
+          "type": "integer"
+        },
+        "households_registered": {
+          "type": "integer"
+        },
+        "households_without_assigned_worker": {
+          "type": "integer"
+        },
+        "beneficiaries_registered": {
+          "type": "integer"
+        },
+        "visits_confirmed": {
+          "type": "integer"
+        },
+        "households_visited": {
+          "type": "integer"
+        },
+        "beneficiaries_visited": {
+          "type": "integer"
+        },
+        "visits_by_type": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "followups_upcoming": {
+          "type": "integer"
+        },
+        "followups_date_passed": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "filters",
+        "active_workers",
+        "territories_total",
+        "territories_with_worker",
+        "households_registered",
+        "households_without_assigned_worker",
+        "beneficiaries_registered",
+        "visits_confirmed",
+        "households_visited",
+        "beneficiaries_visited",
+        "visits_by_type",
+        "followups_upcoming",
+        "followups_date_passed"
+      ],
+      "title": "AdminOverview",
+      "type": "object"
+    },
+    "AdminTerritoryCoverage": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "workers": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "households_registered": {
+          "type": "integer"
+        },
+        "households_visited": {
+          "type": "integer"
+        },
+        "households_not_visited": {
+          "type": "integer"
+        },
+        "last_visit_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "households": {
+          "items": {
+            "$ref": "#/$defs/CoverageHousehold"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "code",
+        "name",
+        "active",
+        "workers",
+        "households_registered",
+        "households_visited",
+        "households_not_visited",
+        "last_visit_at",
+        "households"
+      ],
+      "title": "AdminTerritoryCoverage",
+      "type": "object"
+    },
+    "AdminUser": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "worker",
+            "supervisor",
+            "admin"
+          ],
+          "type": "string"
+        },
+        "active": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "display_name",
+        "role",
+        "active"
+      ],
+      "title": "AdminUser",
+      "type": "object"
+    },
+    "AdminVisit": {
+      "description": "Minimum necessary: public IDs, no names, no transcripts, no clinical free text.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "confirmed_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "worker_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "worker_username": {
+          "type": "string"
+        },
+        "worker_display_name": {
+          "type": "string"
+        },
+        "territory_code": {
+          "type": "string"
+        },
+        "household_public_id": {
+          "type": "string"
+        },
+        "person_public_id": {
+          "type": "string"
+        },
+        "visit_type": {
+          "type": "string"
+        },
+        "status": {
+          "default": "confirmed",
+          "type": "string"
+        },
+        "record_version": {
+          "type": "integer"
+        },
+        "next_visit_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "danger_sign_count": {
+          "type": "integer"
+        },
+        "requires_phc_referral": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "confirmed_at",
+        "worker_id",
+        "worker_username",
+        "worker_display_name",
+        "territory_code",
+        "household_public_id",
+        "person_public_id",
+        "visit_type",
+        "record_version",
+        "next_visit_date",
+        "danger_sign_count",
+        "requires_phc_referral"
+      ],
+      "title": "AdminVisit",
+      "type": "object"
+    },
+    "AdminVisitPage": {
+      "properties": {
+        "total": {
+          "type": "integer"
+        },
+        "limit": {
+          "type": "integer"
+        },
+        "offset": {
+          "type": "integer"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/AdminVisit"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "total",
+        "limit",
+        "offset",
+        "items"
+      ],
+      "title": "AdminVisitPage",
+      "type": "object"
+    },
+    "AdminWorker": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "territories": {
+          "items": {
+            "$ref": "#/$defs/TerritoryRef"
+          },
+          "type": "array"
+        },
+        "households_assigned": {
+          "type": "integer"
+        },
+        "visits_confirmed": {
+          "type": "integer"
+        },
+        "households_visited": {
+          "type": "integer"
+        },
+        "beneficiaries_visited": {
+          "type": "integer"
+        },
+        "last_visit_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "followups_upcoming": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "display_name",
+        "active",
+        "territories",
+        "households_assigned",
+        "visits_confirmed",
+        "households_visited",
+        "beneficiaries_visited",
+        "last_visit_at",
+        "followups_upcoming"
+      ],
+      "title": "AdminWorker",
+      "type": "object"
+    },
     "AgeOut": {
       "properties": {
         "basis": {
@@ -200,6 +659,95 @@
       "title": "AlertRaised",
       "type": "object"
     },
+    "AssignmentCreate": {
+      "properties": {
+        "user_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "territory_id": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "user_id",
+        "territory_id"
+      ],
+      "title": "AssignmentCreate",
+      "type": "object"
+    },
+    "AuditOut": {
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "occurred_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "actor_user_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "action": {
+          "type": "string"
+        },
+        "resource_kind": {
+          "type": "string"
+        },
+        "resource_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "details": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "occurred_at",
+        "actor_user_id",
+        "action",
+        "resource_kind",
+        "resource_id",
+        "request_id",
+        "details"
+      ],
+      "title": "AuditOut",
+      "type": "object"
+    },
     "ClarificationRequested": {
       "properties": {
         "seq": {
@@ -258,6 +806,47 @@
         "record_version"
       ],
       "title": "ConfirmationRequested",
+      "type": "object"
+    },
+    "CoverageHousehold": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "public_id": {
+          "type": "string"
+        },
+        "latitude": {
+          "type": "number"
+        },
+        "longitude": {
+          "type": "number"
+        },
+        "visited_in_range": {
+          "type": "boolean"
+        },
+        "last_visit_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "public_id",
+        "latitude",
+        "longitude",
+        "visited_in_range",
+        "last_visit_at"
+      ],
+      "title": "CoverageHousehold",
       "type": "object"
     },
     "EnrolmentOut": {
@@ -726,6 +1315,21 @@
         "type"
       ],
       "title": "ReadbackRequest",
+      "type": "object"
+    },
+    "ReassignRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "territory_id": {
+          "description": "Territory the worker moves to; the current assignment ends",
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "territory_id"
+      ],
+      "title": "ReassignRequest",
       "type": "object"
     },
     "RecordConfirm": {
@@ -1231,6 +1835,27 @@
         "is_demo_data"
       ],
       "title": "TerritoryOut",
+      "type": "object"
+    },
+    "TerritoryRef": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "code",
+        "name"
+      ],
+      "title": "TerritoryRef",
       "type": "object"
     },
     "TranscriptFinal": {
@@ -1795,6 +2420,33 @@
     },
     "v2_visit": {
       "$ref": "#/$defs/V2VisitOut"
+    },
+    "v2_admin_overview": {
+      "$ref": "#/$defs/AdminOverview"
+    },
+    "v2_admin_worker": {
+      "$ref": "#/$defs/AdminWorker"
+    },
+    "v2_admin_visit_page": {
+      "$ref": "#/$defs/AdminVisitPage"
+    },
+    "v2_admin_territory_coverage": {
+      "$ref": "#/$defs/AdminTerritoryCoverage"
+    },
+    "v2_admin_user": {
+      "$ref": "#/$defs/AdminUser"
+    },
+    "v2_admin_assignment": {
+      "$ref": "#/$defs/AdminAssignment"
+    },
+    "v2_admin_reassign_request": {
+      "$ref": "#/$defs/ReassignRequest"
+    },
+    "v2_admin_assignment_create": {
+      "$ref": "#/$defs/AssignmentCreate"
+    },
+    "v2_audit_event": {
+      "$ref": "#/$defs/AuditOut"
     }
   },
   "required": [
@@ -1811,7 +2463,16 @@
     "v2_household_detail",
     "v2_person",
     "v2_client_event",
-    "v2_visit"
+    "v2_visit",
+    "v2_admin_overview",
+    "v2_admin_worker",
+    "v2_admin_visit_page",
+    "v2_admin_territory_coverage",
+    "v2_admin_user",
+    "v2_admin_assignment",
+    "v2_admin_reassign_request",
+    "v2_admin_assignment_create",
+    "v2_audit_event"
   ],
   "title": "AshaSaathiContracts",
   "type": "object"

@@ -14,7 +14,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from pydantic import BaseModel, TypeAdapter  # noqa: E402
 
 from app.core.config import REPO_ROOT  # noqa: E402
-from app.schemas.auth import LoginRequest, MeOut, TerritoryOut  # noqa: E402
+from app.schemas.admin import (  # noqa: E402
+    AdminAssignment,
+    AdminOverview,
+    AdminTerritoryCoverage,
+    AdminUser,
+    AdminVisitPage,
+    AdminWorker,
+    ReassignRequest,
+)
+from app.schemas.auth import AssignmentCreate, AuditOut, LoginRequest, MeOut, TerritoryOut  # noqa: E402
 from app.schemas.events import ClientEvent, ServerEvent, V2ClientEvent  # noqa: E402
 from app.schemas.households import HouseholdDetail, HouseholdPin, NearbyHousehold, PersonOut  # noqa: E402
 from app.schemas.visit import FollowUpItem, SavedVisit, VisitRecord  # noqa: E402
@@ -40,6 +49,16 @@ class Contracts(BaseModel):
     # V2 voice visit (Phase 5): client events on /ws/v2/session and the confirmed visit history.
     v2_client_event: V2ClientEvent
     v2_visit: V2VisitOut
+    # Admin dashboard (Phase 7): read-only views, assignment changes and the audit trail.
+    v2_admin_overview: AdminOverview
+    v2_admin_worker: AdminWorker
+    v2_admin_visit_page: AdminVisitPage
+    v2_admin_territory_coverage: AdminTerritoryCoverage
+    v2_admin_user: AdminUser
+    v2_admin_assignment: AdminAssignment
+    v2_admin_reassign_request: ReassignRequest
+    v2_admin_assignment_create: AssignmentCreate
+    v2_audit_event: AuditOut
 
 
 def _strip_property_titles(node: object) -> None:
