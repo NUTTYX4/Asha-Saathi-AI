@@ -1,0 +1,31 @@
+# Demo reverse proxy for the Cloudflare Tunnel. Separate project: it never changes the main stack.
+#   docker compose -f deploy/tunnel/compose.yaml up -d
+# It joins the main stack's egress network to reach the api container by name, and listens on
+# 127.0.0.1 only (cloudflared on this laptop is the only way in from outside).
+name: ${ASHA_TUNNEL_PROJECT:-asha-saathi-tunnel}
+
+services:
+  web:
+    image: caddy:2.10.2-alpine
+    environment:
+      ASHA_UPSTREAM: ${ASHA_UPSTREAM:-api:8000}
+    ports:
+      - "127.0.0.1:${ASHA_TUNNEL_PORT:-8080}:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../../frontend/dist:/srv:ro
+    networks: [asha]
+    read_only: true
+    tmpfs:
+      - /data:mode=1777
+      - /config:mode=1777
+    user: "65534:65534"
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]   # the image's caddy binary carries this file capability; exec fails without it
+    security_opt: ["no-new-privileges:true"]
+    restart: "no"
+
+networks:
+  asha:
+    external: true
+    name: asha-saathi_egress

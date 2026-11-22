@@ -1,0 +1,15 @@
+{
+    "$schema":  "https://openapi.vercel.sh/vercel.json",
+    "redirects":  [
+                      {
+                          "source":  "/",
+                          "destination":  "https://households-definitions-facilities-comfortable.trycloudflare.com/v2",
+                          "permanent":  false
+                      },
+                      {
+                          "source":  "/:path*",
+                          "destination":  "https://households-definitions-facilities-comfortable.trycloudflare.com/:path*",
+                          "permanent":  false
+                      }
+                  ]
+}

@@ -1,0 +1,4 @@
+# Upload only the redirect itself.
+*
+!vercel.json
+!index.html
