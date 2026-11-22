@@ -24,6 +24,7 @@ Voice-first field register for ASHA workers (Gnani PS1). Hackathon prototype; sy
 - V2 browser e2e (disposable `asha_saathi_e2e` DB, no external requests): `uv run --no-project --with playwright==1.64.1 python -I e2e/phase4_browser.py --channel msedge`
   (also `e2e/phase5_browser.py` voice flow with mock Gnani, `e2e/phase6_design.py` responsive + axe-core)
 - V2 UI design system: `docs/v2/design/` (Berry/Lime tokens in `frontend/src/styles/index.css`, scoped to `.v2`; Round 1 at `/` untouched)
+- One-command local start: `py run.py` (`--status`, `--backend-only`, `--stop`; docs/LOCAL_DEVELOPMENT.md). Launcher tests: `py -m unittest discover -s tests/launcher`.
 - The user runs the dev servers in their own terminals (see README "Run"). Backend log: `data/backend.log`.
   In Windows PowerShell 5.1, never pipe uvicorn through `2>&1 | Tee-Object`: the server exits. Use the
   `cmd /c "... > ..\data\backend.log 2>&1"` form instead.

@@ -66,6 +66,28 @@ No telephony, no voice cloning and no hosted voice-agent product: the orchestrat
 
 ---
 
+## Quick start: ASHA Saathi AI 2.0 (one command)
+
+You need:
+
+- Docker Desktop, running
+- Node.js 20+
+- Python 3.9+
+- a repository-root `.env` copied from `.env.example`, with `POSTGRES_PASSWORD` and `GNANI_API_KEY` set
+
+```powershell
+py run.py              # start what is missing, then stream logs; Ctrl+C leaves Docker running
+py run.py --status     # health only, changes nothing
+```
+
+Open **https://localhost:5173/v2**.
+
+The launcher never restarts or rebuilds healthy containers and never resets the database. It refuses anything disruptive while the public demo tunnel is running.
+
+Details, logs, troubleshooting and safe shutdown: [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md). Docker operations: [docs/v2/operations.md](docs/v2/operations.md).
+
+The rest of this section describes the original Round 1 app (SQLite, run by hand).
+
 ## Setup (Windows PowerShell)
 
 Prerequisites: Python 3.11, Node.js 20+, a Gnani API Platform key from
